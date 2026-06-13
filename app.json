@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "TAG",
+    "slug": "tag-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "tag",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tag.aliasgame"
+    },
+    "android": {
+      "package": "com.tag.aliasgame",
+      "adaptiveIcon": {
+        "backgroundColor": "#fdecc7",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-localization"
+    ]
+  }
+}
