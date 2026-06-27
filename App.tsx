@@ -8,6 +8,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import CreateTheme from './src/components/CreateTheme';
+import EditTheme from './src/components/EditTheme';
 import GameHistory from './src/components/GameHistory';
 import GamePlay from './src/components/GamePlay';
 import GameSetup from './src/components/GameSetup';
@@ -34,6 +35,7 @@ type AppScreen =
   | 'login'
   | 'theme-selection'
   | 'theme-details'
+  | 'edit-theme'
   | 'game-setup'
   | 'game-play'
   | 'round-results'
@@ -506,6 +508,15 @@ function AppInner() {
             setScreen('theme-selection');
           }}
           onThemeSelect={handleThemeSelect}
+          onEdit={() => setScreen('edit-theme')}
+        />
+      )}
+      {screen === 'edit-theme' && user && selectedThemeId && (
+        <EditTheme
+          user={user}
+          themeId={selectedThemeId}
+          onBack={() => setScreen('theme-details')}
+          onSaved={() => setScreen('theme-details')}
         />
       )}
       {screen === 'create-theme' && user && (

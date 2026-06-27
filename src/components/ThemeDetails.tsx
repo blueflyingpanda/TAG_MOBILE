@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { useLocale } from '../contexts/LocaleContext';
 import { alpha, useTheme } from '../contexts/ThemeContext';
 import type { Theme, User } from '../types';
@@ -12,6 +12,7 @@ interface ThemeDetailsProps {
   themeId: number;
   onBack: (filters?: ThemeFilters) => void;
   onThemeSelect?: (theme: Theme) => void;
+  onEdit?: () => void;
   filters?: ThemeFilters;
 }
 
@@ -20,6 +21,7 @@ export default function ThemeDetails({
   themeId,
   onBack,
   onThemeSelect,
+  onEdit,
   filters,
 }: ThemeDetailsProps) {
   const { t } = useLocale();
@@ -114,6 +116,41 @@ export default function ThemeDetails({
         </Pressable>
 
         <View className="flex-row flex-wrap items-center gap-2">
+          <Pressable
+            onPress={() =>
+              Share.share({
+                url: `https://blueflyingpanda.github.io/TAG/theme/${theme.id}/`,
+                message: `https://blueflyingpanda.github.io/TAG/theme/${theme.id}/`,
+              })
+            }
+            className="rounded-game px-4 py-2"
+            style={{
+              backgroundColor: alpha(colors.text, 0.06),
+              borderWidth: 1,
+              borderColor: alpha(colors.text, 0.15),
+            }}
+          >
+            <Text className="font-semibold" style={{ color: colors.text }}>
+              {t.td_share}
+            </Text>
+          </Pressable>
+
+          {onEdit && (user.admin || user.email === theme.creator?.email) && (
+            <Pressable
+              onPress={onEdit}
+              className="rounded-game px-4 py-2"
+              style={{
+                backgroundColor: alpha(colors.text, 0.06),
+                borderWidth: 1,
+                borderColor: alpha(colors.text, 0.15),
+              }}
+            >
+              <Text className="font-semibold" style={{ color: colors.text }}>
+                {t.et_edit}
+              </Text>
+            </Pressable>
+          )}
+
           {user && (
             <Pressable
               onPress={handleToggleFavorite}
