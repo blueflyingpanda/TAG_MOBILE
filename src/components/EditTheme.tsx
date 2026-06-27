@@ -4,7 +4,7 @@ import { useLocale } from '../contexts/LocaleContext';
 import { alpha, useTheme } from '../contexts/ThemeContext';
 import type { Theme, User } from '../types';
 import { Card } from '../ui/Card';
-import { Checkbox } from '../ui/controls';
+import { Checkbox, StarRating } from '../ui/controls';
 import { getTheme, patchThemeVisibility, updateTheme } from '../utils/themes';
 
 interface EditThemeProps {
@@ -21,7 +21,7 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [isPublic, setIsPublic] = useState(false);
-  const [newWordTexts, setNewWordTexts] = useState<string[]>(['']);
+  const [newWords, setNewWords] = useState<{ text: string; difficulty: number }[]>([{ text: '', difficulty: 1 }]);
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
   const [error, setError] = useState('');
@@ -64,15 +64,18 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
     }
   };
 
-  const addWord = () => setNewWordTexts([...newWordTexts, '']);
-
-  const updateWord = (i: number, val: string) => {
-    const next = [...newWordTexts];
-    next[i] = val;
-    setNewWordTexts(next);
+  const addWord = () => setNewWords([...newWords, { text: '', difficulty: 1 }]);
+  const removeWord = (i: number) => setNewWords(newWords.filter((_, idx) => idx !== i));
+  const updateWordText = (i: number, val: string) => {
+    const next = [...newWords];
+    next[i] = { ...next[i], text: val };
+    setNewWords(next);
   };
-
-  const removeWord = (i: number) => setNewWordTexts(newWordTexts.filter((_, idx) => idx !== i));
+  const updateWordDifficulty = (i: number, difficulty: number) => {
+    const next = [...newWords];
+    next[i] = { ...next[i], difficulty };
+    setNewWords(next);
+  };
 
   const handleSave = async () => {
     if (!theme) return;
@@ -82,15 +85,15 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
     if (name.length > 64) { setError(t.ct_errNameTooLong); return; }
     if (name.trim().split(/\s+/).length > 10) { setError(t.ct_errNameTooManyWords); return; }
 
-    const validNew = newWordTexts.map((w) => w.trim()).filter(Boolean);
+    const validNew = newWords.filter((w) => w.text.trim());
 
-    for (const word of validNew) {
-      if (word.length > 64) { setError(t.ct_errWordTooLong(word)); return; }
-      if (word.split(/\s+/).length > 10) { setError(t.ct_errWordTooManyWords(word)); return; }
+    for (const { text } of validNew) {
+      if (text.length > 64) { setError(t.ct_errWordTooLong(text)); return; }
+      if (text.split(/\s+/).length > 10) { setError(t.ct_errWordTooManyWords(text)); return; }
     }
 
-    // Duplicates within new words
-    const newLower = validNew.map((w) => w.toLowerCase());
+    // Duplicates within new words list
+    const newLower = validNew.map((w) => w.text.trim().toLowerCase());
     if (new Set(newLower).size !== newLower.length) {
       const seen = new Set<string>();
       const dupes = newLower.filter((w) => { if (seen.has(w)) return true; seen.add(w); return false; });
@@ -100,9 +103,9 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
 
     // Duplicates against existing words
     const existingLower = new Set(Object.keys(theme.description.words).map((w) => w.toLowerCase()));
-    const clashes = validNew.filter((w) => existingLower.has(w.toLowerCase()));
+    const clashes = validNew.filter((w) => existingLower.has(w.text.trim().toLowerCase()));
     if (clashes.length > 0) {
-      setError(t.et_errWordDuplicate(clashes.slice(0, 3).map((w) => `"${w}"`).join(', ')));
+      setError(t.et_errWordDuplicate(clashes.slice(0, 3).map((w) => `"${w.text.trim()}"`).join(', ')));
       return;
     }
 
@@ -110,7 +113,7 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
     try {
       const mergedWords = {
         ...theme.description.words,
-        ...Object.fromEntries(validNew.map((w) => [w, { difficulty: 1 as const }])),
+        ...Object.fromEntries(validNew.map((w) => [w.text.trim(), { difficulty: w.difficulty }])),
       };
       const updated = await updateTheme(theme.id, {
         name: name.trim(),
@@ -173,21 +176,6 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
           {t.et_title}
         </Text>
 
-        {error ? (
-          <View
-            className="mb-4 rounded-game p-4"
-            style={{
-              backgroundColor: alpha(colors.error, 0.1),
-              borderWidth: 1,
-              borderColor: alpha(colors.error, 0.4),
-            }}
-          >
-            <Text className="text-sm" style={{ color: colors.error }}>
-              {error}
-            </Text>
-          </View>
-        ) : null}
-
         <View className="gap-6">
           {/* Name */}
           <View>
@@ -203,10 +191,7 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
               maxLength={64}
             />
             <Text className="mt-1 text-xs" style={{ color: alpha(colors.text, 0.6) }}>
-              {t.ct_nameCounter(
-                name.length,
-                name.trim().split(/\s+/).filter(Boolean).length,
-              )}
+              {t.ct_nameCounter(name.length, name.trim().split(/\s+/).filter(Boolean).length)}
             </Text>
           </View>
 
@@ -303,32 +288,44 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
               {t.et_addWordsHint}
             </Text>
             <View className="gap-2">
-              {newWordTexts.map((word, i) => (
-                <View key={i} className="flex-row gap-2">
-                  <TextInput
-                    value={word}
-                    onChangeText={(v) => updateWord(i, v)}
-                    placeholder={t.ct_wordPlaceholder(i + 1)}
-                    placeholderTextColor={alpha(colors.text, 0.4)}
-                    className="flex-1 rounded-game px-4 py-2 text-sm"
-                    style={inputStyle}
-                    maxLength={64}
-                  />
-                  {newWordTexts.length > 1 && (
-                    <Pressable
-                      onPress={() => removeWord(i)}
-                      className="justify-center rounded-game px-3 py-2"
-                      style={{
-                        backgroundColor: alpha(colors.error, 0.1),
-                        borderWidth: 1,
-                        borderColor: alpha(colors.error, 0.3),
-                      }}
-                    >
-                      <Text className="text-sm font-semibold" style={{ color: colors.error }}>
-                        ×
-                      </Text>
-                    </Pressable>
-                  )}
+              {newWords.map((word, i) => (
+                <View key={i} className="gap-2">
+                  <View className="flex-row items-center gap-2">
+                    <TextInput
+                      value={word.text}
+                      onChangeText={(v) => updateWordText(i, v)}
+                      placeholder={t.ct_wordPlaceholder(i + 1)}
+                      placeholderTextColor={alpha(colors.text, 0.4)}
+                      className="flex-1 rounded-game px-4 py-2 text-sm"
+                      style={inputStyle}
+                      maxLength={64}
+                    />
+                    {newWords.length > 1 && (
+                      <Pressable
+                        onPress={() => removeWord(i)}
+                        className="justify-center rounded-game px-3 py-2"
+                        style={{
+                          backgroundColor: alpha(colors.error, 0.1),
+                          borderWidth: 1,
+                          borderColor: alpha(colors.error, 0.3),
+                        }}
+                      >
+                        <Text className="text-sm font-semibold" style={{ color: colors.error }}>
+                          ×
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <View className="flex-row items-center gap-2 pl-1">
+                    <Text className="text-sm" style={{ color: alpha(colors.text, 0.8) }}>
+                      {t.ct_difficulty}
+                    </Text>
+                    <StarRating
+                      value={word.difficulty}
+                      onChange={(level) => updateWordDifficulty(i, level)}
+                      size={18}
+                    />
+                  </View>
                 </View>
               ))}
             </View>
@@ -341,6 +338,22 @@ export default function EditTheme({ user: _user, themeId, onBack, onSaved }: Edi
                 {t.ct_addWord}
               </Text>
             </Pressable>
+
+            {/* Error shown here, under the words section */}
+            {error ? (
+              <View
+                className="mt-3 rounded-game p-3"
+                style={{
+                  backgroundColor: alpha(colors.error, 0.1),
+                  borderWidth: 1,
+                  borderColor: alpha(colors.error, 0.4),
+                }}
+              >
+                <Text className="text-sm" style={{ color: colors.error }}>
+                  {error}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Actions */}
