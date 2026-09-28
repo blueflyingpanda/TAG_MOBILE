@@ -1,72 +1,61 @@
-# TAG Mobile
+# T.A.G. Mobile
 
-Cross-platform (iOS + Android) React Native port of the [TAG web app](../TAG), built with Expo.
+Native Android/iOS client for **T.A.G. — Themed Alias Game**, built with Flutter.
+Talks to the same backend as the web app ([TAG_API](../TAG_API)).
 
 ## Stack
 
-- **Expo SDK 56** / React Native 0.85 (TypeScript)
-- **NativeWind 4** (Tailwind class styling) + theme palette mirroring the web CSS variables (light/dark)
-- **react-native-reanimated 4** + **react-native-gesture-handler** — swipeable word-card stack, counters, transitions
-- **AsyncStorage** — token, user, locale, theme, in-progress game state (replaces web localStorage)
-- **expo-web-browser + deep link (`tag://auth`)** — Google OAuth via the existing TAG_API flow
+- Flutter (Dart 3), Material 3 with the T.A.G. brand theme
+- Riverpod (state), go_router (navigation), dio (HTTP)
+- Native Google Sign-In (`google_sign_in`) → `POST /auth/google`
+- Token in `flutter_secure_storage`; game state and preferences in `shared_preferences`
 
-## Architecture
-
-`src/` mirrors the web app:
-
-- `types.ts`, `i18n/translations.ts`, `utils/game.ts`, `utils/games.ts`, `utils/themes.ts` — identical to web
-- `utils/config.ts` — API base (override with `EXPO_PUBLIC_API_BASE`)
-- `utils/oauth.ts` — token handling + native login flow
-- `utils/storage.ts` — AsyncStorage-backed persistence
-- `contexts/` — locale (EN/RU) + light/dark theme palette
-- `components/`, `ui/` — RN ports of every web screen
-
-## Auth flow (mobile)
-
-1. App opens an in-app browser at `GET /auth/login?redirect_uri=tag://auth`
-2. TAG_API stores the redirect with the OAuth `state`, sends the user through Google
-3. `GET /auth/token` redirects to `tag://auth?code=<one-time-code>` (instead of the web FE URL)
-4. App exchanges the code at `POST /auth/exchange` for the JWT
-
-Requires TAG_API with `redirect_uri` support on `/auth/login` (setting `MOBILE_REDIRECT_URI`, default `tag://auth`) — added alongside this app.
-
-## Development
+## Run
 
 ```bash
-npm install
-npx expo start          # Expo Go / dev client
+flutter pub get
+flutter run                      # debug on a connected device/emulator
+flutter run --release            # use this to judge performance/feel
 ```
 
-Note: this project uses native modules (reanimated, gesture-handler, etc.) compatible with Expo Go for SDK 56. For full-fidelity dev builds use `npx expo run:android` / `npx expo run:ios`.
+Point at a local API with `--dart-define=API_BASE=http://10.0.2.2:8000` (Android emulator → host).
 
-Against a local backend (Android emulator): `EXPO_PUBLIC_API_BASE=http://10.0.2.2:8000 npx expo start`
-
-## Building
-
-### Android (local)
+## Build an APK
 
 ```bash
-export ANDROID_HOME=$HOME/Library/Android/sdk
-npx expo prebuild --platform android
-cd android && ./gradlew assembleRelease
-# APK: android/app/build/outputs/apk/release/app-release.apk
+flutter build apk --release --split-per-abi
+# → build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 ```
 
-The release build uses the debug signing config by default — fine for sideloading/testing. For Play Store, generate an upload keystore and configure `android/app/build.gradle` signing, or use EAS (`eas build -p android`).
+Release builds are currently signed with the debug keystore, whose SHA-1 is
+registered as the Android OAuth client in Google Cloud. Before publishing, set up a
+real release keystore and register its SHA-1 too, or Google Sign-In will fail.
 
-### iOS (local — requires Xcode)
+## Translations
 
-1. Install Xcode from the App Store, then:
-   ```bash
-   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-   sudo xcodebuild -license accept
-   brew install cocoapods
-   ```
-2. Build:
-   ```bash
-   npx expo prebuild --platform ios
-   npx pod-install
-   npx expo run:ios                       # simulator
-   npx expo run:ios --device              # device (needs Apple Developer signing in Xcode)
-   ```
-   For an archive/.ipa, open `ios/TAG.xcworkspace` in Xcode → Product → Archive (set a development team first), or use EAS (`eas build -p ios`).
+`lib/i18n/translations.dart` is **generated** from the web app's
+`../TAG/src/i18n/translations.ts`. Edit the web file, then run:
+
+```bash
+node tool/gen_translations.mjs
+```
+
+## Tests
+
+```bash
+flutter analyze
+flutter test
+```
+
+## Layout
+
+```
+lib/
+  core/      config, theme (brand tokens), storage
+  data/      API client, models, auth
+  game/      pure game rules (scoring, win condition, cheat detection)
+  state/     Riverpod providers
+  features/  screens (themes, game, history, rules, login)
+  ui/        shared widgets
+  router.dart
+```
