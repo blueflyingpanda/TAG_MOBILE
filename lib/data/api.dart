@@ -62,6 +62,13 @@ class Api {
         action: 'sign in',
       );
 
+  /// Permanently deletes the signed-in account (DELETE /auth/me).
+  Future<void> deleteAccount() => _call(
+        () => _dio.delete('/auth/me'),
+        (_) {},
+        action: 'delete account',
+      );
+
   // Themes
 
   Future<Paginated<ThemeListItem>> getThemes({

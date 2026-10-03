@@ -28,9 +28,13 @@ class RulesScreen extends ConsumerWidget {
                 _Section(
                   title: t.rules_basicGameplay,
                   children: [
+                    // rules_intro already starts with "Alias"; bold that word rather than prefixing another.
                     Text.rich(TextSpan(children: [
-                      const TextSpan(text: 'Alias ', style: TextStyle(fontWeight: FontWeight.w700)),
-                      TextSpan(text: t.rules_intro),
+                      if (t.rules_intro.startsWith('Alias')) ...[
+                        const TextSpan(text: 'Alias', style: TextStyle(fontWeight: FontWeight.w700)),
+                        TextSpan(text: t.rules_intro.substring('Alias'.length)),
+                      ] else
+                        TextSpan(text: t.rules_intro),
                     ])),
                     const SizedBox(height: 8),
                     for (final r in [t.rules_rule1, t.rules_rule2, t.rules_rule3, t.rules_rule4, t.rules_rule5, t.rules_rule6])

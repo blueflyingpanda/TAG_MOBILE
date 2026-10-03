@@ -20,16 +20,28 @@ flutter run --release            # use this to judge performance/feel
 
 Point at a local API with `--dart-define=API_BASE=http://10.0.2.2:8000` (Android emulator → host).
 
-## Build an APK
+## Build
 
 ```bash
-flutter build apk --release --split-per-abi
-# → build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+flutter build apk --release --split-per-abi   # sideload: build/app/outputs/flutter-apk/
+flutter build appbundle --release             # Google Play: build/app/outputs/bundle/release/app-release.aab
 ```
 
-Release builds are currently signed with the debug keystore, whose SHA-1 is
-registered as the Android OAuth client in Google Cloud. Before publishing, set up a
-real release keystore and register its SHA-1 too, or Google Sign-In will fail.
+## Release
+
+Release builds are signed with the upload key, configured in `android/key.properties`
+(gitignored):
+
+```properties
+storePassword=…
+keyPassword=…
+keyAlias=upload
+storeFile=/Users/<you>/keys/tag-upload-keystore.jks
+```
+
+Without that file a release build stops with an error instead of signing with the debug key.
+Keep the keystore and its password backed up. Play Console steps, store listing text and
+Data safety answers are in [store/PLAY_RELEASE.md](store/PLAY_RELEASE.md).
 
 ## Translations
 

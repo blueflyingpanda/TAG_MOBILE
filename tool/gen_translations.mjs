@@ -39,14 +39,17 @@ for (const line of iface.split('\n')) {
 const dartType = (tsType) =>
   ({ string: 'String', number: 'int', boolean: 'bool' })[tsType] ?? 'Object';
 
-const { code } = esbuild.transformSync(source, { loader: 'ts', format: 'esm' });
+// charset utf8: keep Cyrillic etc. as-is (esbuild's default rewrites it to \uXXXX escapes).
+const { code } = esbuild.transformSync(source, { loader: 'ts', format: 'esm', charset: 'utf8' });
 const mod = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 const escape = (s) =>
   s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\$/g, '\\$').replace(/\n/g, '\\n');
 
-// Convert a JS template literal body into a Dart single-quoted string literal,
-// keeping `${...}` interpolations (JS ternaries with double quotes are valid Dart).
+// Convert a JS template literal *source* body into a Dart single-quoted string
+// literal, keeping `${...}` interpolations (JS ternaries with double quotes are
+// valid Dart). The body is still JS source, so its backslash escapes (\n, \uXXXX,
+// \") are already valid Dart and pass through untouched.
 function templateToDart(body) {
   let out = '';
   let i = 0;
@@ -61,8 +64,13 @@ function templateToDart(body) {
       }
       out += '${' + body.slice(i + 2, j - 1).trim() + '}';
       i = j;
+    } else if (body[i] === '\\') {
+      // JS-only escapes: \` and \$ are plain characters in a Dart '...' string.
+      const next = body[i + 1];
+      out += next === '`' ? '`' : next === '$' ? '\\$' : body[i] + next;
+      i += 2;
     } else {
-      out += escape(body[i]);
+      out += body[i] === "'" ? "\\'" : body[i] === '$' ? '\\$' : body[i];
       i++;
     }
   }

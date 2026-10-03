@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../core/config.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../state/providers.dart';
@@ -62,6 +64,35 @@ class Avatar extends StatelessWidget {
 class ProfileSheet extends ConsumerWidget {
   const ProfileSheet({super.key});
 
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final t = ref.read(tProvider);
+    final c = context.colors;
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.nav_deleteAccountTitle),
+        content: Text(t.nav_deleteAccountBody),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.ct_cancel)),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: c.error),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(t.nav_deleteAccountConfirm),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    Navigator.pop(context);
+    try {
+      // On success the router redirect sends the user to the login screen.
+      await ref.read(authProvider.notifier).deleteAccount();
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(t.nav_deleteAccountFailed), backgroundColor: c.error));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
@@ -121,6 +152,21 @@ class ProfileSheet extends ConsumerWidget {
                 Navigator.pop(context);
                 ref.read(authProvider.notifier).logout();
               },
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () => launchUrl(Uri.parse(privacyPolicyUrl), mode: LaunchMode.externalApplication),
+                  child: Text(t.nav_privacyPolicy, style: TextStyle(color: c.textA(0.7))),
+                ),
+                Text('•', style: TextStyle(color: c.textA(0.4))),
+                TextButton(
+                  onPressed: () => _confirmDelete(context, ref),
+                  child: Text(t.nav_deleteAccount, style: TextStyle(color: c.error)),
+                ),
+              ],
             ),
           ],
         ),

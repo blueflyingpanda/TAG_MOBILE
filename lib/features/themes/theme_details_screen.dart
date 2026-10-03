@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config.dart';
 import '../../core/theme.dart';
@@ -78,6 +79,27 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
     ));
   }
 
+  /// Play UGC policy: let players flag objectionable themes (emailed to us).
+  void _report() {
+    final theme = _theme!;
+    final user = ref.read(authProvider);
+    launchUrl(Uri(
+      scheme: 'mailto',
+      path: contactEmail,
+      query: _encodeQuery({
+        'subject': 'TAG: report theme #${theme.id}',
+        'body': 'Theme: ${theme.name} (#${theme.id})\n'
+            'Link: $shareBaseUrl/${theme.id}/\n'
+            'Reported by: ${user?.email ?? user?.username ?? 'unknown'}\n\n'
+            'What is wrong with this theme?\n',
+      }),
+    ));
+  }
+
+  // Uri(queryParameters:) encodes spaces as '+', which mail apps show literally.
+  static String _encodeQuery(Map<String, String> params) =>
+      params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
+
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
@@ -114,6 +136,20 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
                   final saved = await context.push<bool>('/theme/${theme.id}/edit');
                   if (saved == true) _load();
                 },
+              )
+            else
+              PopupMenuButton<String>(
+                onSelected: (_) => _report(),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'report',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.flag_outlined, color: c.error),
+                      title: Text(t.td_report),
+                    ),
+                  ),
+                ],
               ),
           ],
         ],

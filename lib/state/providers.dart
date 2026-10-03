@@ -34,6 +34,12 @@ class AuthNotifier extends Notifier<User?> {
     state = userFromToken(token);
   }
 
+  /// Deletes the account server-side, then clears everything locally.
+  Future<void> deleteAccount() async {
+    await ref.read(apiProvider).deleteAccount();
+    await logout();
+  }
+
   Future<void> logout() async {
     if (state == null) return;
     state = null;
