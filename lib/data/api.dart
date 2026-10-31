@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 import '../core/config.dart';
 import 'models.dart';
 
-const _appVersion = String.fromEnvironment('APP_VERSION');
+const _appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.0.0');
 
 class ApiException implements Exception {
   ApiException(this.message, {this.statusCode});
@@ -68,7 +68,7 @@ class Api {
 
   /// Fire-and-forget usage event; never throws or blocks the UI.
   void trackEvent(String name, [Map<String, Object?> props = const {}]) {
-    _dio.post<void>('/events', data: {'name': name, 'props': props}).then((_) {}, onError: (_) {});
+    _dio.post<void>('/events/', data: {'name': name, 'props': props}).then((_) {}, onError: (_) {});
   }
 
   // Auth
