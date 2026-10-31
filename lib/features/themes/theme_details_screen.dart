@@ -10,6 +10,8 @@ import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../state/providers.dart';
 import '../../ui/widgets.dart';
+import '../game/game_setup_screen.dart';
+import '../profile_sheet.dart';
 
 class ThemeDetailsScreen extends ConsumerStatefulWidget {
   const ThemeDetailsScreen({super.key, required this.themeId});
@@ -49,7 +51,7 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
 
   Future<void> _toggleFavourite() async {
     final theme = _theme;
-    if (theme == null || _togglingFavourite) return;
+    if (theme == null || _togglingFavourite || !requireLogin(context, ref)) return;
     HapticFeedback.lightImpact();
     final next = !theme.isFavorited;
     // Optimistic update, reverted on failure.
@@ -71,6 +73,7 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
 
   void _share() {
     final theme = _theme!;
+    ref.read(apiProvider).trackEvent('theme_shared', {'theme_id': theme.id, 'method': 'native_share'});
     final box = context.findRenderObject() as RenderBox?;
     SharePlus.instance.share(ShareParams(
       uri: Uri.parse('$shareBaseUrl/${theme.id}/'),
@@ -164,19 +167,7 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
                     isError: true,
                     action: GameButton(label: t.td_back, expand: false, onPressed: () => context.pop()),
                   )
-                : Column(
-                    children: [
-                      Expanded(child: _details(theme)),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: GameButton(
-                          label: t.td_select,
-                          icon: Icons.play_arrow_rounded,
-                          onPressed: () => context.push('/setup', extra: theme),
-                        ),
-                      ),
-                    ],
-                  ),
+                : _details(theme),
       ),
     );
   }
@@ -192,6 +183,10 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         children: [
+          if (theme.coverImageUrl != null) ...[
+            CoverImage(url: theme.coverImageUrl, borderRadius: gameBorderRadius),
+            const SizedBox(height: 12),
+          ],
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -201,16 +196,28 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
               _Pill(t.td_visibility(theme.isPublic)),
             ],
           ),
+          if (theme.summary.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(theme.summary),
+          ],
           if (theme.creator != null) ...[
             const SizedBox(height: 10),
             Text(t.td_createdBy(theme.creator!.email ?? theme.creator!.username ?? ''), style: muted),
           ],
           const SizedBox(height: 20),
-          SectionLabel(t.td_teams(theme.description.teams.length)),
-          _ChipGrid(items: theme.description.teams),
+          GameSetupForm(key: ValueKey(theme.id), theme: theme),
           const SizedBox(height: 20),
-          SectionLabel(t.td_words(words.length)),
-          _ChipGrid(items: words),
+          Tile(
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Text(t.td_words(words.length), style: const TextStyle(fontWeight: FontWeight.w600)),
+                children: [_ChipGrid(items: words)],
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -66,6 +66,8 @@ class GameTheme {
     required this.id,
     required this.name,
     required this.language,
+    this.summary = '',
+    this.coverImageUrl,
     required this.isPublic,
     required this.verified,
     required this.description,
@@ -77,6 +79,8 @@ class GameTheme {
   final int id;
   final String name;
   final String language;
+  final String summary;
+  final String? coverImageUrl;
   final bool isPublic;
   final bool verified;
   final ThemeDescription description;
@@ -90,6 +94,8 @@ class GameTheme {
         id: (j['id'] as num).toInt(),
         name: j['name'] as String,
         language: j['language'] as String? ?? 'en',
+        summary: j['summary'] as String? ?? '',
+        coverImageUrl: j['cover_image_url'] as String?,
         isPublic: j['public'] as bool? ?? false,
         verified: j['verified'] as bool? ?? false,
         description:
@@ -105,6 +111,8 @@ class GameTheme {
         'id': id,
         'name': name,
         'language': language,
+        'summary': summary,
+        'cover_image_url': coverImageUrl,
         'public': isPublic,
         'verified': verified,
         'description': description.toJson(),
@@ -117,6 +125,8 @@ class GameTheme {
         id: id,
         name: name,
         language: language,
+        summary: summary,
+        coverImageUrl: coverImageUrl,
         isPublic: isPublic,
         verified: verified,
         description: description,
@@ -131,6 +141,8 @@ class ThemeListItem {
     required this.id,
     required this.name,
     required this.language,
+    this.summary = '',
+    this.coverImageUrl,
     required this.verified,
     this.likesCount = 0,
   });
@@ -138,6 +150,8 @@ class ThemeListItem {
   final int id;
   final String name;
   final String language;
+  final String summary;
+  final String? coverImageUrl;
   final bool verified;
   final int likesCount;
 
@@ -145,6 +159,8 @@ class ThemeListItem {
         id: (j['id'] as num).toInt(),
         name: j['name'] as String,
         language: j['language'] as String? ?? 'en',
+        summary: j['summary'] as String? ?? '',
+        coverImageUrl: j['cover_image_url'] as String?,
         verified: j['verified'] as bool? ?? false,
         likesCount: (j['likes'] as num?)?.toInt() ?? 0,
       );

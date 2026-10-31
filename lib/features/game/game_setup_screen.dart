@@ -8,16 +8,16 @@ import '../../data/models.dart';
 import '../../state/providers.dart';
 import '../../ui/widgets.dart';
 
-class GameSetupScreen extends ConsumerStatefulWidget {
-  const GameSetupScreen({super.key, required this.theme});
+class GameSetupForm extends ConsumerStatefulWidget {
+  const GameSetupForm({super.key, required this.theme});
 
   final GameTheme theme;
 
   @override
-  ConsumerState<GameSetupScreen> createState() => _GameSetupScreenState();
+  ConsumerState<GameSetupForm> createState() => _GameSetupFormState();
 }
 
-class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
+class _GameSetupFormState extends ConsumerState<GameSetupForm> {
   late final List<String> _teams = widget.theme.description.teams;
   late final Set<String> _selected = {
     ?_teams.firstOrNull,
@@ -60,100 +60,79 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
     final c = context.colors;
-    final theme = widget.theme;
-
-    return Scaffold(
-      appBar: AppBar(title: Text(theme.name)),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GameCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionLabel(t.gs_selectTeams),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Text(
-                    '${theme.description.words.length} words • ${theme.description.teams.length} teams available',
-                    style: TextStyle(color: c.textA(0.6)),
-                  ),
-                  const SizedBox(height: 16),
-                  GameCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SectionLabel(t.gs_selectTeams),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final team in _teams)
-                              _TeamChip(
-                                label: team,
-                                selected: _selected.contains(team),
-                                onTap: () => _toggleTeam(team),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(t.gs_selectedTeams(_selected.length, _teams.length),
-                            style: TextStyle(fontSize: 13, color: c.textA(0.6))),
-                      ],
+                  for (final team in _teams)
+                    _TeamChip(
+                      label: team,
+                      selected: _selected.contains(team),
+                      onTap: () => _toggleTeam(team),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  GameCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SectionLabel(t.gs_difficulty),
-                        StarRating(value: _difficulty, onChanged: (v) => setState(() => _difficulty = v)),
-                        Text(t.gs_difficultyHint(_difficulty), style: TextStyle(fontSize: 13, color: c.textA(0.6))),
-                        const SizedBox(height: 20),
-                        SectionLabel(t.gs_pointsRequired(_points.round())),
-                        _StepSlider(
-                          value: _points,
-                          min: 10,
-                          max: 100,
-                          divisions: 9,
-                          minLabel: '10',
-                          maxLabel: '100',
-                          onChanged: (v) => setState(() => _points = v),
-                        ),
-                        const SizedBox(height: 12),
-                        SectionLabel(t.gs_roundTimer(_timer.round())),
-                        _StepSlider(
-                          value: _timer,
-                          min: 15,
-                          max: 120,
-                          divisions: 7,
-                          minLabel: '15s',
-                          maxLabel: '120s',
-                          onChanged: (v) => setState(() => _timer = v),
-                        ),
-                        const SizedBox(height: 8),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(t.gs_skipPenalty, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          value: _skipPenalty,
-                          onChanged: (v) => setState(() => _skipPenalty = v),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: GameButton(
-                label: t.gs_startGame,
-                loading: _starting,
-                onPressed: _selected.length < 2 ? null : _start,
-              ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(t.gs_selectedTeams(_selected.length, _teams.length),
+                  style: TextStyle(fontSize: 13, color: c.textA(0.6))),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 12),
+        GameCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionLabel(t.gs_difficulty),
+              StarRating(value: _difficulty, onChanged: (v) => setState(() => _difficulty = v)),
+              Text(t.gs_difficultyHint(_difficulty), style: TextStyle(fontSize: 13, color: c.textA(0.6))),
+              const SizedBox(height: 20),
+              SectionLabel(t.gs_pointsRequired(_points.round())),
+              _StepSlider(
+                value: _points,
+                min: 10,
+                max: 100,
+                divisions: 9,
+                minLabel: '10',
+                maxLabel: '100',
+                onChanged: (v) => setState(() => _points = v),
+              ),
+              const SizedBox(height: 12),
+              SectionLabel(t.gs_roundTimer(_timer.round())),
+              _StepSlider(
+                value: _timer,
+                min: 15,
+                max: 120,
+                divisions: 7,
+                minLabel: '15s',
+                maxLabel: '120s',
+                onChanged: (v) => setState(() => _timer = v),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: Text(t.gs_skipPenalty, style: const TextStyle(fontWeight: FontWeight.w600)),
+                value: _skipPenalty,
+                onChanged: (v) => setState(() => _skipPenalty = v),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        GameButton(
+          label: t.gs_startGame,
+          loading: _starting,
+          onPressed: _selected.length < 2 ? null : _start,
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/config.dart';
@@ -7,6 +8,13 @@ import '../core/theme.dart';
 import '../data/models.dart';
 import '../state/providers.dart';
 import '../ui/widgets.dart';
+
+/// Guests are sent to the sign-in screen. Returns true when signed in.
+bool requireLogin(BuildContext context, WidgetRef ref) {
+  if (ref.read(authProvider) != null) return true;
+  context.push('/login');
+  return false;
+}
 
 /// Avatar in the app bar; opens account + preferences (web: header bar).
 class ProfileButton extends ConsumerWidget {
@@ -16,11 +24,10 @@ class ProfileButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final t = ref.watch(tProvider);
-    if (user == null) return const SizedBox.shrink();
     return IconButton(
       tooltip: t.nav_profileAlt,
       onPressed: () => showModalBottomSheet(context: context, builder: (_) => const ProfileSheet()),
-      icon: Avatar(user: user, size: 32),
+      icon: user == null ? const Icon(Icons.account_circle_outlined, size: 32) : Avatar(user: user, size: 32),
     );
   }
 }
@@ -38,20 +45,22 @@ class Avatar extends StatelessWidget {
       user.username.isEmpty ? '?' : user.username[0].toUpperCase(),
       style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * 0.45),
     );
+    final picture = user.picture;
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
+      decoration: BoxDecoration(shape: BoxShape.circle, color: c.primary),
+      // Border is painted over the photo so the image fills the whole circle.
+      foregroundDecoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: c.primary,
         border: Border.all(color: c.textA(0.15), width: 2),
       ),
       clipBehavior: Clip.antiAlias,
       alignment: Alignment.center,
-      child: user.picture == null
+      child: picture == null || picture.isEmpty
           ? initial
           : Image.network(
-              user.picture!,
+              picture,
               width: size,
               height: size,
               fit: BoxFit.cover,
@@ -86,7 +95,6 @@ class ProfileSheet extends ConsumerWidget {
     if (ok != true || !context.mounted) return;
     Navigator.pop(context);
     try {
-      // On success the router redirect sends the user to the login screen.
       await ref.read(authProvider.notifier).deleteAccount();
     } catch (_) {
       messenger.showSnackBar(SnackBar(content: Text(t.nav_deleteAccountFailed), backgroundColor: c.error));
@@ -102,7 +110,6 @@ class ProfileSheet extends ConsumerWidget {
     final mode = ref.watch(themeModeProvider);
     final platformDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     final isDark = mode == ThemeMode.dark || (mode == ThemeMode.system && platformDark);
-    if (user == null) return const SizedBox.shrink();
 
     return SafeArea(
       child: Padding(
@@ -110,11 +117,13 @@ class ProfileSheet extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Avatar(user: user, size: 64),
-            const SizedBox(height: 10),
-            Text(user.username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            if (user.email != null) Text(user.email!, style: TextStyle(color: c.textA(0.7))),
-            const SizedBox(height: 20),
+            if (user != null) ...[
+              Avatar(user: user, size: 64),
+              const SizedBox(height: 10),
+              Text(user.username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              if (user.email != null) Text(user.email!, style: TextStyle(color: c.textA(0.7))),
+              const SizedBox(height: 20),
+            ],
             Tile(
               color: c.card,
               padding: EdgeInsets.zero,
@@ -144,28 +153,41 @@ class ProfileSheet extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
-            GameButton(
-              label: t.nav_logout,
-              variant: ButtonVariant.error,
-              icon: Icons.logout_rounded,
-              onPressed: () {
-                Navigator.pop(context);
-                ref.read(authProvider.notifier).logout();
-              },
-            ),
+            if (user == null)
+              GameButton(
+                label: t.nav_login,
+                icon: Icons.login_rounded,
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/login');
+                },
+              )
+            else
+              GameButton(
+                label: t.nav_logout,
+                variant: ButtonVariant.error,
+                icon: Icons.logout_rounded,
+                onPressed: () {
+                  Navigator.pop(context);
+                  ref.read(authProvider.notifier).logout();
+                },
+              ),
             const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 TextButton(
                   onPressed: () => launchUrl(Uri.parse(privacyPolicyUrl), mode: LaunchMode.externalApplication),
                   child: Text(t.nav_privacyPolicy, style: TextStyle(color: c.textA(0.7))),
                 ),
-                Text('•', style: TextStyle(color: c.textA(0.4))),
-                TextButton(
-                  onPressed: () => _confirmDelete(context, ref),
-                  child: Text(t.nav_deleteAccount, style: TextStyle(color: c.error)),
-                ),
+                if (user != null) ...[
+                  Text('•', style: TextStyle(color: c.textA(0.4))),
+                  TextButton(
+                    onPressed: () => _confirmDelete(context, ref),
+                    child: Text(t.nav_deleteAccount, style: TextStyle(color: c.error)),
+                  ),
+                ],
               ],
             ),
           ],

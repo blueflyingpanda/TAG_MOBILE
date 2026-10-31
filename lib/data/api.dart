@@ -1,7 +1,12 @@
+import 'dart:io' show Platform;
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import '../core/config.dart';
 import 'models.dart';
+
+const _appVersion = String.fromEnvironment('APP_VERSION');
 
 class ApiException implements Exception {
   ApiException(this.message, {this.statusCode});
@@ -19,7 +24,11 @@ class ApiException implements Exception {
 
 /// Thin wrapper over the TAG REST API (see TAG_API/src/api).
 class Api {
-  Api({required String? Function() token, required void Function() onUnauthorized})
+  Api({
+    required String? Function() token,
+    required String Function() anonId,
+    required void Function() onUnauthorized,
+  })
       : _dio = Dio(BaseOptions(
           baseUrl: apiBase,
           connectTimeout: const Duration(seconds: 10),
@@ -29,6 +38,9 @@ class Api {
       onRequest: (options, handler) {
         final t = token();
         if (t != null) options.headers['Authorization'] = 'Bearer $t';
+        options.headers['X-Anon-Id'] = anonId();
+        options.headers['X-Platform'] = Platform.operatingSystem;
+        if (_appVersion.isNotEmpty) options.headers['X-App-Version'] = _appVersion;
         handler.next(options);
       },
       onError: (e, handler) {
@@ -52,6 +64,11 @@ class Api {
         statusCode: code,
       );
     }
+  }
+
+  /// Fire-and-forget usage event; never throws or blocks the UI.
+  void trackEvent(String name, [Map<String, Object?> props = const {}]) {
+    _dio.post<void>('/events', data: {'name': name, 'props': props}).then((_) {}, onError: (_) {});
   }
 
   // Auth
@@ -110,10 +127,15 @@ class Api {
         action: 'create theme',
       );
 
-  /// Replaces name/words/teams. Does not affect visibility.
-  Future<GameTheme> updateTheme(int id, {required String name, required ThemeDescription description}) =>
+  /// Replaces name/summary/words/teams. Does not affect visibility.
+  Future<GameTheme> updateTheme(
+    int id, {
+    required String name,
+    required String summary,
+    required ThemeDescription description,
+  }) =>
       _call(
-        () => _dio.put('/themes/$id', data: {'name': name, 'description': description.toJson()}),
+        () => _dio.put('/themes/$id', data: {'name': name, 'summary': summary, 'description': description.toJson()}),
         (d) => GameTheme.fromJson(d as Map<String, dynamic>),
         action: 'update theme',
       );
@@ -122,6 +144,23 @@ class Api {
         () => _dio.patch('/themes/$id', data: {'public': isPublic}),
         (d) => GameTheme.fromJson(d as Map<String, dynamic>),
         action: 'update visibility',
+      );
+
+  /// Server crops to 16:9, resizes to 640x360 WebP (<= 256 KB). 413: over 5 MB, 422: not an image.
+  Future<GameTheme> uploadCoverImage(int id, Uint8List bytes, String filename) => _call(
+        () => _dio.put(
+          '/themes/$id/cover-image',
+          data: FormData.fromMap({'file': MultipartFile.fromBytes(bytes, filename: filename)}),
+          options: Options(sendTimeout: const Duration(seconds: 60)),
+        ),
+        (d) => GameTheme.fromJson(d as Map<String, dynamic>),
+        action: 'upload cover image',
+      );
+
+  Future<void> deleteCoverImage(int id) => _call(
+        () => _dio.delete('/themes/$id/cover-image'),
+        (_) {},
+        action: 'delete cover image',
       );
 
   Future<void> setFavourite(int id, bool favourite) => _call(
@@ -151,11 +190,11 @@ class Api {
         action: 'load game',
       );
 
-  Future<int> createGame(GameSettings s) => _call(
+  Future<int> createGame(GameSettings s, {DateTime? startedAt}) => _call(
         () => _dio.post('/games/', data: {
           'theme_id': s.theme.id,
           'difficulty': s.difficulty,
-          'started_at': DateTime.now().toUtc().toIso8601String(),
+          'started_at': (startedAt ?? DateTime.now()).toUtc().toIso8601String(),
           'ended_at': null,
           'points': s.pointsRequired,
           'round': s.roundTimer,
@@ -172,16 +211,31 @@ class Api {
 
   /// The server merges word lists, so send only this round's results.
   Future<void> updateGame(int id, GameState state, List<WordResult> roundResults, {bool ended = false}) =>
+      putGame(
+        id,
+        info: GameInfo(
+          teams: [for (final e in state.teamScores.entries) TeamScore(e.key, e.value)],
+          currentTeamIndex: state.currentTeamIndex,
+          currentRound: state.currentRound,
+        ),
+        guessed: [for (final r in roundResults) if (r.guessed) r.word],
+        skipped: [for (final r in roundResults) if (!r.guessed) r.word],
+        endedAt: ended ? DateTime.now() : null,
+      );
+
+  Future<void> putGame(
+    int id, {
+    required GameInfo info,
+    required List<String> guessed,
+    required List<String> skipped,
+    DateTime? endedAt,
+  }) =>
       _call(
         () => _dio.put('/games/$id', data: {
-          'info': GameInfo(
-            teams: [for (final e in state.teamScores.entries) TeamScore(e.key, e.value)],
-            currentTeamIndex: state.currentTeamIndex,
-            currentRound: state.currentRound,
-          ).toJson(),
-          'words_guessed': [for (final r in roundResults) if (r.guessed) r.word],
-          'words_skipped': [for (final r in roundResults) if (!r.guessed) r.word],
-          if (ended) 'ended_at': DateTime.now().toUtc().toIso8601String(),
+          'info': info.toJson(),
+          'words_guessed': guessed,
+          'words_skipped': skipped,
+          if (endedAt != null) 'ended_at': endedAt.toUtc().toIso8601String(),
         }),
         (_) {},
         action: 'update game',

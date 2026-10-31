@@ -97,6 +97,15 @@ class _ImportThemeSheetState extends ConsumerState<ImportThemeSheet> {
     super.dispose();
   }
 
+  /// Drops focus first: popping while the keyboard is up can trip a framework
+  /// assertion (`_dependents.isEmpty`) as the focused field is torn down.
+  void _close([bool? result]) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.pop(context, result);
+    });
+  }
+
   Future<void> _paste() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     if (data?.text != null) {
@@ -117,7 +126,7 @@ class _ImportThemeSheetState extends ConsumerState<ImportThemeSheet> {
     setState(() => _submitting = true);
     try {
       await ref.read(apiProvider).createTheme(payload);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) _close(true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -172,7 +181,7 @@ class _ImportThemeSheetState extends ConsumerState<ImportThemeSheet> {
                     child: GameButton(
                       label: t.ts_cancel,
                       variant: ButtonVariant.muted,
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _close,
                     ),
                   ),
                   const SizedBox(width: 12),

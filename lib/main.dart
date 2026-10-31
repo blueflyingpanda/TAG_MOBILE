@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/storage.dart';
 import 'core/theme.dart';
+import 'data/local_games.dart';
 import 'router.dart';
 import 'state/providers.dart';
 
@@ -13,10 +14,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  final (storage, _) = await (AppStorage.init(), initializeDateFormatting()).wait;
+  final (storage, localGames, _) =
+      await (AppStorage.init(), LocalGameStore.open(), initializeDateFormatting()).wait;
 
   runApp(ProviderScope(
-    overrides: [storageProvider.overrideWithValue(storage)],
+    overrides: [
+      storageProvider.overrideWithValue(storage),
+      localGamesProvider.overrideWithValue(localGames),
+    ],
     child: const TagApp(),
   ));
 }

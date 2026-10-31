@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../i18n/translations.dart';
 import '../../state/providers.dart';
 import '../../ui/widgets.dart';
+import 'cover_picker.dart';
 import 'word_editor.dart';
 
 class CreateThemeScreen extends ConsumerStatefulWidget {
@@ -18,8 +19,10 @@ class CreateThemeScreen extends ConsumerStatefulWidget {
 class _CreateThemeScreenState extends ConsumerState<CreateThemeScreen> {
   final _scroll = ScrollController();
   final _name = TextEditingController();
+  final _summary = TextEditingController();
   late String _lang = ref.read(localeProvider);
   bool _public = true;
+  PickedCover? _cover;
   final List<EditableEntry> _teams = [EditableEntry()];
   final List<EditableEntry> _words = [EditableEntry()];
   bool _submitting = false;
@@ -30,6 +33,7 @@ class _CreateThemeScreenState extends ConsumerState<CreateThemeScreen> {
   void dispose() {
     _scroll.dispose();
     _name.dispose();
+    _summary.dispose();
     for (final e in [..._teams, ..._words]) {
       e.ctrl.dispose();
     }
@@ -92,8 +96,10 @@ class _CreateThemeScreenState extends ConsumerState<CreateThemeScreen> {
       _submitting = true;
     });
     try {
-      await ref.read(apiProvider).createTheme({
+      final api = ref.read(apiProvider);
+      final created = await api.createTheme({
         'name': _name.text.trim(),
+        if (_summary.text.trim().isNotEmpty) 'summary': _summary.text.trim(),
         'language': _lang,
         'public': _public,
         'description': {
@@ -104,6 +110,15 @@ class _CreateThemeScreenState extends ConsumerState<CreateThemeScreen> {
           'teams': [for (final e in _teams) if (e.trimmed.isNotEmpty) e.trimmed],
         },
       });
+      final cover = _cover;
+      if (cover != null) {
+        try {
+          await api.uploadCoverImage(created.id, cover.bytes, cover.filename);
+        } catch (e) {
+          // The theme exists already; the cover can be added later from the edit screen.
+          if (mounted) showToast(context, coverErrorMessage(t, e), error: true);
+        }
+      }
       if (mounted) context.pop(true);
     } catch (e) {
       if (mounted) {
@@ -167,6 +182,16 @@ class _CreateThemeScreenState extends ConsumerState<CreateThemeScreen> {
                           onChanged: (v) => setState(() => _public = v),
                         ),
                         const SizedBox(height: 4),
+                        CoverPicker(
+                          t: t,
+                          bytes: _cover?.bytes,
+                          onPick: () async {
+                            final picked = await pickCover(context, t);
+                            if (picked != null) setState(() => _cover = picked);
+                          },
+                          onRemove: () => setState(() => _cover = null),
+                        ),
+                        const SizedBox(height: 16),
                         SectionLabel(t.ct_nameLabel),
                         TextField(
                           controller: _name,
@@ -176,6 +201,15 @@ class _CreateThemeScreenState extends ConsumerState<CreateThemeScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(t.ct_nameCounter(_name.text.length, wordCount(_name.text)), style: muted),
+                        const SizedBox(height: 16),
+                        SectionLabel(t.ct_summaryLabel),
+                        TextField(
+                          controller: _summary,
+                          maxLength: 255,
+                          minLines: 1,
+                          maxLines: 3,
+                          decoration: InputDecoration(hintText: t.ct_summaryPlaceholder),
+                        ),
                       ],
                     ),
                   ),

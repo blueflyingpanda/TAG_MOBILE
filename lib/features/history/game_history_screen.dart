@@ -30,6 +30,7 @@ class _GameHistoryScreenState extends ConsumerState<GameHistoryScreen> {
   }
 
   Future<void> _load() async {
+    if (ref.read(authProvider) == null) return;
     try {
       final res = await ref.read(apiProvider).getGames();
       if (mounted) {
@@ -48,6 +49,10 @@ class _GameHistoryScreenState extends ConsumerState<GameHistoryScreen> {
     final t = ref.watch(tProvider);
     final c = context.colors;
     final games = _games;
+    final signedIn = ref.watch(authProvider) != null;
+    ref.listen(authProvider, (_, user) {
+      if (user != null) _load();
+    });
 
     return Scaffold(
       body: RefreshIndicator(
@@ -60,7 +65,20 @@ class _GameHistoryScreenState extends ConsumerState<GameHistoryScreen> {
               title: Text(t.gh_title),
               actions: const [ProfileButton(), SizedBox(width: 8)],
             ),
-            if (_error != null && games == null)
+            if (!signedIn)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: StatusView(
+                  message: t.login_required,
+                  action: GameButton(
+                    label: t.nav_login,
+                    expand: false,
+                    icon: Icons.login_rounded,
+                    onPressed: () => context.push('/login'),
+                  ),
+                ),
+              )
+            else if (_error != null && games == null)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: StatusView(

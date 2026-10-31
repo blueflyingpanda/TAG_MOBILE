@@ -122,25 +122,52 @@ class ErrorBox extends StatelessWidget {
 }
 
 Future<String?> promptForText(BuildContext context, {required String message, required String ok, required String cancel}) {
-  final ctrl = TextEditingController();
   return showDialog<String>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (_) => _PromptDialog(message: message, ok: ok, cancel: cancel),
+  );
+}
+
+/// Owns the controller so it is disposed only after the dialog's exit animation,
+/// when the TextField is really gone (disposing on route completion crashes).
+class _PromptDialog extends StatefulWidget {
+  const _PromptDialog({required this.message, required this.ok, required this.cancel});
+
+  final String message;
+  final String ok;
+  final String cancel;
+
+  @override
+  State<_PromptDialog> createState() => _PromptDialogState();
+}
+
+class _PromptDialogState extends State<_PromptDialog> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(message, style: const TextStyle(fontSize: 14)),
+          Text(widget.message, style: const TextStyle(fontSize: 14)),
           const SizedBox(height: 12),
-          TextField(controller: ctrl, minLines: 6, maxLines: 10, autofocus: true),
+          TextField(controller: _ctrl, minLines: 6, maxLines: 10, autofocus: true),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(cancel)),
-        FilledButton(onPressed: () => Navigator.pop(context, ctrl.text), child: Text(ok)),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(widget.cancel)),
+        FilledButton(onPressed: () => Navigator.pop(context, _ctrl.text), child: Text(widget.ok)),
       ],
-    ),
-  ).whenComplete(ctrl.dispose);
+    );
+  }
 }
 
 GameButton addButton(String label, VoidCallback? onPressed) => GameButton(

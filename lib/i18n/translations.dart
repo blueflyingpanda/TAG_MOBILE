@@ -19,6 +19,9 @@ class Translations {
     required this.login_subtitle,
     required this.login_loading,
     required this.login_google,
+    required this.login_guest,
+    required this.login_required,
+    required this.nav_login,
     required this.ts_title,
     required this.ts_language,
     required this.ts_langEnglish,
@@ -162,6 +165,17 @@ class Translations {
     required this.ct_errWordTooManyWords,
     required this.ct_errWordDifficulty,
     required this.ct_errFailed,
+    required this.ct_summaryLabel,
+    required this.ct_summaryPlaceholder,
+    required this.ct_coverImage,
+    required this.ct_coverAdd,
+    required this.ct_coverChange,
+    required this.ct_coverRemove,
+    required this.ct_coverTooLarge,
+    required this.ct_coverInvalid,
+    required this.ct_coverUploadFailed,
+    required this.ct_coverCropTitle,
+    required this.ct_coverCropConfirm,
     required this.et_title,
     required this.et_edit,
     required this.et_save,
@@ -249,6 +263,9 @@ class Translations {
   final String login_subtitle;
   final String login_loading;
   final String login_google;
+  final String login_guest;
+  final String login_required;
+  final String nav_login;
   final String ts_title;
   final String ts_language;
   final String ts_langEnglish;
@@ -392,6 +409,17 @@ class Translations {
   final String Function(String) ct_errWordTooManyWords;
   final String Function(String) ct_errWordDifficulty;
   final String ct_errFailed;
+  final String ct_summaryLabel;
+  final String ct_summaryPlaceholder;
+  final String ct_coverImage;
+  final String ct_coverAdd;
+  final String ct_coverChange;
+  final String ct_coverRemove;
+  final String ct_coverTooLarge;
+  final String ct_coverInvalid;
+  final String ct_coverUploadFailed;
+  final String ct_coverCropTitle;
+  final String ct_coverCropConfirm;
   final String et_title;
   final String et_edit;
   final String et_save;
@@ -480,6 +508,9 @@ final en = Translations(
   login_subtitle: 'Themed Alias Game',
   login_loading: 'Loading...',
   login_google: 'Continue with Google',
+  login_guest: 'Continue as guest',
+  login_required: 'Sign in to favourite themes, create themes and browse your game history. Guest progress is saved on this device and synced after you sign in.',
+  nav_login: 'Sign in',
   ts_title: 'Select Theme',
   ts_language: 'Language',
   ts_langEnglish: 'English',
@@ -623,6 +654,17 @@ final en = Translations(
   ct_errWordTooManyWords: (String word) => 'Word "${word}" must be 10 words or less',
   ct_errWordDifficulty: (String word) => 'Word "${word}" must have a difficulty between 1 and 5',
   ct_errFailed: 'Failed to create theme',
+  ct_summaryLabel: 'Summary (optional)',
+  ct_summaryPlaceholder: 'A short description of the theme',
+  ct_coverImage: 'Cover image',
+  ct_coverAdd: 'Add cover image',
+  ct_coverChange: 'Change cover image',
+  ct_coverRemove: 'Remove cover image',
+  ct_coverTooLarge: 'Image is too large (max 5 MB)',
+  ct_coverInvalid: 'Not a valid image',
+  ct_coverUploadFailed: 'Cover upload failed',
+  ct_coverCropTitle: 'Frame the cover',
+  ct_coverCropConfirm: 'Use this crop',
   et_title: 'Edit Theme',
   et_edit: 'Edit',
   et_save: 'Save Changes',
@@ -711,6 +753,9 @@ final ru = Translations(
   login_subtitle: 'Тематическая игра Alias',
   login_loading: 'Загрузка...',
   login_google: 'Войти через Google',
+  login_guest: 'Продолжить как гость',
+  login_required: 'Войдите, чтобы добавлять темы в избранное, создавать темы и смотреть историю игр. Прогресс гостя хранится на устройстве и синхронизируется после входа.',
+  nav_login: 'Войти',
   ts_title: 'Выбор темы',
   ts_language: 'Язык',
   ts_langEnglish: 'Английский',
@@ -854,6 +899,17 @@ final ru = Translations(
   ct_errWordTooManyWords: (String word) => 'Слово "${word}" не более 10 слов',
   ct_errWordDifficulty: (String word) => 'Слово "${word}" должно иметь сложность от 1 до 5',
   ct_errFailed: 'Не удалось создать тему',
+  ct_summaryLabel: 'Краткое описание (необязательно)',
+  ct_summaryPlaceholder: 'Коротко о теме',
+  ct_coverImage: 'Обложка',
+  ct_coverAdd: 'Добавить обложку',
+  ct_coverChange: 'Изменить обложку',
+  ct_coverRemove: 'Удалить обложку',
+  ct_coverTooLarge: 'Изображение слишком большое (макс. 5 МБ)',
+  ct_coverInvalid: 'Недопустимое изображение',
+  ct_coverUploadFailed: 'Не удалось загрузить обложку',
+  ct_coverCropTitle: 'Рамка обложки',
+  ct_coverCropConfirm: 'Использовать',
   et_title: 'Редактировать тему',
   et_edit: 'Редактировать',
   et_save: 'Сохранить',

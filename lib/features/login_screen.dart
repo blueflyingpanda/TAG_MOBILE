@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/theme.dart';
 import '../data/auth.dart';
@@ -14,6 +15,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _loading = false;
+  bool _closed = false;
   String? _error;
 
   Future<void> _signIn() async {
@@ -22,7 +24,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      // On success the router redirect moves us off this screen.
       await ref.read(authProvider.notifier).signInWithGoogle();
     } on SignInCancelled {
       // User backed out of the account picker — not an error.
@@ -33,10 +34,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _close() {
+    if (_closed) return;
+    _closed = true;
+    context.canPop() ? context.pop() : context.go('/');
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
     final c = context.colors;
+
+    // Leave as soon as a session exists, even if this screen was rebuilt mid sign-in.
+    if (ref.watch(authProvider) != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _close();
+      });
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -70,8 +84,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const Text('T.A.G.', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
                     Text(t.login_subtitle, style: TextStyle(color: c.textA(0.7))),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 16),
+                    Text(
+                      t.login_required,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: c.textA(0.7), fontSize: 13),
+                    ),
+                    const SizedBox(height: 24),
                     _GoogleButton(label: _loading ? t.login_loading : t.login_google, loading: _loading, onTap: _signIn),
+                    const SizedBox(height: 8),
+                    TextButton(onPressed: _loading ? null : _close, child: Text(t.login_guest)),
                     if (_error != null) ...[
                       const SizedBox(height: 14),
                       Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: c.error, fontSize: 13)),

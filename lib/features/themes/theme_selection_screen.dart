@@ -13,7 +13,6 @@ import 'import_theme_sheet.dart';
 
 class ThemeFilters {
   const ThemeFilters({
-    this.language = 'en',
     this.search = '',
     this.order = 'id',
     this.descending = false,
@@ -22,7 +21,6 @@ class ThemeFilters {
     this.unverified = false,
   });
 
-  final String language;
   final String search;
   final String order; // id | name | likes
   final bool descending;
@@ -31,49 +29,56 @@ class ThemeFilters {
   final bool unverified;
 
   int get activeCount =>
-      (order != 'id' ? 1 : 0) + (descending ? 1 : 0) + (mine ? 1 : 0) + (favourites ? 1 : 0) + (unverified ? 1 : 0);
+      (order != 'id' ? 1 : 0) +
+      (descending ? 1 : 0) +
+      (mine ? 1 : 0) +
+      (favourites ? 1 : 0) +
+      (unverified ? 1 : 0);
 
   ThemeFilters copyWith({
-    String? language,
     String? search,
     String? order,
     bool? descending,
     bool? mine,
     bool? favourites,
     bool? unverified,
-  }) =>
-      ThemeFilters(
-        language: language ?? this.language,
-        search: search ?? this.search,
-        order: order ?? this.order,
-        descending: descending ?? this.descending,
-        mine: mine ?? this.mine,
-        favourites: favourites ?? this.favourites,
-        unverified: unverified ?? this.unverified,
-      );
+  }) => ThemeFilters(
+    search: search ?? this.search,
+    order: order ?? this.order,
+    descending: descending ?? this.descending,
+    mine: mine ?? this.mine,
+    favourites: favourites ?? this.favourites,
+    unverified: unverified ?? this.unverified,
+  );
 }
 
 /// Kept app-wide so filters survive navigating into a theme and back
 /// (the web app keeps them in the URL).
 class ThemeFiltersNotifier extends Notifier<ThemeFilters> {
   @override
-  ThemeFilters build() => ThemeFilters(language: ref.read(localeProvider));
+  ThemeFilters build() => const ThemeFilters();
 
   void update(ThemeFilters f) => state = f;
 }
 
-final themeFiltersProvider = NotifierProvider<ThemeFiltersNotifier, ThemeFilters>(ThemeFiltersNotifier.new);
+final themeFiltersProvider =
+    NotifierProvider<ThemeFiltersNotifier, ThemeFilters>(
+      ThemeFiltersNotifier.new,
+    );
 
 class ThemeSelectionScreen extends ConsumerStatefulWidget {
   const ThemeSelectionScreen({super.key});
 
   @override
-  ConsumerState<ThemeSelectionScreen> createState() => _ThemeSelectionScreenState();
+  ConsumerState<ThemeSelectionScreen> createState() =>
+      _ThemeSelectionScreenState();
 }
 
 class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
   final _scroll = ScrollController();
-  late final _searchCtrl = TextEditingController(text: ref.read(themeFiltersProvider).search);
+  late final _searchCtrl = TextEditingController(
+    text: ref.read(themeFiltersProvider).search,
+  );
   Timer? _debounce;
 
   final List<ThemeListItem> _items = [];
@@ -112,15 +117,18 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
     if (!force && (_loading || _page >= _pages)) return;
     final seq = ++_requestSeq;
     final f = ref.read(themeFiltersProvider);
+    final signedIn = ref.read(authProvider) != null;
     setState(() => _loading = true);
     try {
-      final res = await ref.read(apiProvider).getThemes(
+      final res = await ref
+          .read(apiProvider)
+          .getThemes(
             page: _page + 1,
-            language: f.language,
+            language: ref.read(localeProvider),
             name: f.search.isEmpty ? null : f.search,
-            mine: f.mine,
+            mine: f.mine && signedIn,
             verified: f.unverified ? false : null,
-            favourites: f.favourites,
+            favourites: f.favourites && signedIn,
             order: f.order,
             descending: f.descending,
           );
@@ -148,7 +156,9 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      _setFilters(ref.read(themeFiltersProvider).copyWith(search: value.trim()));
+      _setFilters(
+        ref.read(themeFiltersProvider).copyWith(search: value.trim()),
+      );
     });
   }
 
@@ -162,6 +172,7 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
   }
 
   Future<void> _openImport() async {
+    if (!requireLogin(context, ref)) return;
     final created = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -176,6 +187,8 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
     final c = context.colors;
     final filters = ref.watch(themeFiltersProvider);
     final game = ref.watch(gameProvider);
+    ref.listen(authProvider, (_, _) => _reload());
+    ref.listen(localeProvider, (_, _) => _reload());
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
@@ -183,11 +196,15 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
         backgroundColor: c.success,
         foregroundColor: Colors.white,
         onPressed: () async {
+          if (!requireLogin(context, ref)) return;
           final created = await context.push<bool>('/create');
           if (created == true) _reload();
         },
         icon: const Icon(Icons.add_rounded),
-        label: Text(t.ts_create, style: const TextStyle(fontWeight: FontWeight.w700)),
+        label: Text(
+          t.ts_create,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _reload,
@@ -247,11 +264,6 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _LanguageToggle(
-                      value: filters.language,
-                      onChanged: (v) => _setFilters(filters.copyWith(language: v)),
-                    ),
-                    const SizedBox(width: 4),
                     Badge(
                       isLabelVisible: filters.activeCount > 0,
                       label: Text('${filters.activeCount}'),
@@ -271,20 +283,34 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   child: Tile(
                     color: c.success.withValues(alpha: 0.12),
-                    onTap: () => context.go(game.hasPendingResults ? '/results' : '/play'),
+                    onTap: () => context.go(
+                      game.hasPendingResults ? '/results' : '/play',
+                    ),
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Icon(Icons.play_circle_fill_rounded, color: c.success, size: 32),
+                        Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: c.success,
+                          size: 32,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(t.gh_resumeGame, style: const TextStyle(fontWeight: FontWeight.w700)),
+                              Text(
+                                t.gh_resumeGame,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               Text(
                                 '${game.settings.theme.name} • ${t.gp_round(game.currentRound)}',
-                                style: TextStyle(fontSize: 13, color: c.textA(0.7)),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: c.textA(0.7),
+                                ),
                               ),
                             ],
                           ),
@@ -301,7 +327,10 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   child: Tile(
                     color: c.card,
-                    child: Text(t.ts_unverifiedWarning, style: const TextStyle(fontSize: 13)),
+                    child: Text(
+                      t.ts_unverifiedWarning,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
                 ),
               ),
@@ -311,11 +340,18 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                 child: StatusView(
                   message: _error!,
                   isError: true,
-                  action: GameButton(label: t.ts_search, expand: false, onPressed: _reload),
+                  action: GameButton(
+                    label: t.ts_search,
+                    expand: false,
+                    onPressed: _reload,
+                  ),
                 ),
               )
             else if (_items.isEmpty && !_loading)
-              SliverFillRemaining(hasScrollBody: false, child: StatusView(message: t.ts_noThemes))
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: StatusView(message: t.ts_noThemes),
+              )
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
@@ -330,7 +366,10 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                       );
                     }
                     final item = _items[i];
-                    return _ThemeTile(item: item, onTap: () => context.push('/theme/${item.id}'));
+                    return _ThemeTile(
+                      item: item,
+                      onTap: () => context.push('/theme/${item.id}'),
+                    );
                   },
                 ),
               ),
@@ -353,46 +392,69 @@ class _ThemeTile extends StatelessWidget {
     return Tile(
       color: c.card,
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Row(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(item.verified ? '✅' : '❌', style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          CoverImage(url: item.coverImageUrl),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      item.verified ? '✅' : '❌',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    ...[
+                      Icon(
+                        Icons.favorite_rounded,
+                        size: 16,
+                        color: c.error.withValues(alpha: 0.8),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${item.likesCount}',
+                        style: TextStyle(color: c.textA(0.7), fontSize: 13),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Icon(Icons.chevron_right_rounded, color: c.textA(0.4)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Fixed height (2 lines) so tiles match with or without a summary.
+                SizedBox(
+                  height: 36,
+                  child: Text(
+                    item.summary,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: c.textA(0.7),
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          if (item.likesCount > 0) ...[
-            Icon(Icons.favorite_rounded, size: 16, color: c.error.withValues(alpha: 0.8)),
-            const SizedBox(width: 4),
-            Text('${item.likesCount}', style: TextStyle(color: c.textA(0.7), fontSize: 13)),
-            const SizedBox(width: 4),
-          ],
-          Icon(Icons.chevron_right_rounded, color: c.textA(0.4)),
         ],
-      ),
-    );
-  }
-}
-
-class _LanguageToggle extends StatelessWidget {
-  const _LanguageToggle({required this.value, required this.onChanged});
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Material(
-      color: c.card,
-      shape: RoundedRectangleBorder(borderRadius: gameBorderRadius, side: BorderSide(color: c.textA(0.15))),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => onChanged(value == 'en' ? 'ru' : 'en'),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          child: Text(value == 'en' ? '🇬🇧 EN' : '🇷🇺 RU', style: const TextStyle(fontWeight: FontWeight.w600)),
-        ),
       ),
     );
   }
@@ -413,6 +475,7 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
+    final signedIn = ref.watch(authProvider) != null;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
@@ -420,16 +483,6 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionLabel(t.ts_language),
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(value: 'en', label: Text(t.ts_langEnglish)),
-                ButtonSegment(value: 'ru', label: Text(t.ts_langRussian)),
-              ],
-              selected: {_f.language},
-              onSelectionChanged: (s) => setState(() => _f = _f.copyWith(language: s.first)),
-            ),
-            const SizedBox(height: 16),
             SectionLabel(t.ts_orderBy),
             SegmentedButton<String>(
               segments: [
@@ -438,17 +491,27 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
                 ButtonSegment(value: 'likes', label: Text(t.ts_orderByLikes)),
               ],
               selected: {_f.order},
-              onSelectionChanged: (s) => setState(() => _f = _f.copyWith(order: s.first)),
+              onSelectionChanged: (s) =>
+                  setState(() => _f = _f.copyWith(order: s.first)),
             ),
             const SizedBox(height: 16),
             SectionLabel(t.ts_orderDirection),
             SegmentedButton<bool>(
               segments: [
-                ButtonSegment(value: false, label: Text(t.ts_ascending), icon: const Icon(Icons.arrow_upward_rounded)),
-                ButtonSegment(value: true, label: Text(t.ts_descending), icon: const Icon(Icons.arrow_downward_rounded)),
+                ButtonSegment(
+                  value: false,
+                  label: Text(t.ts_ascending),
+                  icon: const Icon(Icons.arrow_upward_rounded),
+                ),
+                ButtonSegment(
+                  value: true,
+                  label: Text(t.ts_descending),
+                  icon: const Icon(Icons.arrow_downward_rounded),
+                ),
               ],
               selected: {_f.descending},
-              onSelectionChanged: (s) => setState(() => _f = _f.copyWith(descending: s.first)),
+              onSelectionChanged: (s) =>
+                  setState(() => _f = _f.copyWith(descending: s.first)),
             ),
             const SizedBox(height: 8),
             SwitchListTile.adaptive(
@@ -457,20 +520,26 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
               value: _f.unverified,
               onChanged: (v) => setState(() => _f = _f.copyWith(unverified: v)),
             ),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: Text(t.ts_onlyMine),
-              value: _f.mine,
-              onChanged: (v) => setState(() => _f = _f.copyWith(mine: v)),
-            ),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: Text(t.ts_onlyFavorites),
-              value: _f.favourites,
-              onChanged: (v) => setState(() => _f = _f.copyWith(favourites: v)),
-            ),
+            if (signedIn) ...[
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: Text(t.ts_onlyMine),
+                value: _f.mine,
+                onChanged: (v) => setState(() => _f = _f.copyWith(mine: v)),
+              ),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: Text(t.ts_onlyFavorites),
+                value: _f.favourites,
+                onChanged: (v) =>
+                    setState(() => _f = _f.copyWith(favourites: v)),
+              ),
+            ],
             const SizedBox(height: 12),
-            GameButton(label: t.ts_search, onPressed: () => Navigator.pop(context, _f)),
+            GameButton(
+              label: t.ts_search,
+              onPressed: () => Navigator.pop(context, _f),
+            ),
           ],
         ),
       ),

@@ -153,6 +153,42 @@ class Tile extends StatelessWidget {
   }
 }
 
+/// 16:9 theme cover. Always reserves its area, so cards keep the same size
+/// with or without an image (placeholder when [url] is null or fails to load).
+class CoverImage extends StatelessWidget {
+  const CoverImage({super.key, this.url, this.bytes, this.borderRadius = BorderRadius.zero});
+
+  final String? url;
+  final Uint8List? bytes;
+  final BorderRadius borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final placeholder = ColoredBox(
+      color: c.textA(0.06),
+      child: Center(child: Icon(Icons.image_outlined, size: 32, color: c.textA(0.3))),
+    );
+    final Widget image;
+    if (bytes != null) {
+      image = Image.memory(bytes!, fit: BoxFit.cover, gaplessPlayback: true);
+    } else if (url != null) {
+      image = Image.network(
+        url!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => placeholder,
+        loadingBuilder: (_, child, progress) => progress == null ? child : placeholder,
+      );
+    } else {
+      image = placeholder;
+    }
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: AspectRatio(aspectRatio: 16 / 9, child: SizedBox.expand(child: image)),
+    );
+  }
+}
+
 class SectionLabel extends StatelessWidget {
   const SectionLabel(this.text, {super.key});
 

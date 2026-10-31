@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +17,8 @@ class AppStorage {
   static const _tokenKey = 'auth_token';
   static const _gameStateKey = 'tag_game_state';
   static const _gameIdKey = 'tag_current_game_id';
+  static const _anonIdKey = 'tag_anon_id';
+  static const _localGameIdKey = 'tag_current_local_game_id';
   static const _localeKey = 'tag_locale';
   static const _themeModeKey = 'tag_theme';
 
@@ -61,11 +64,33 @@ class AppStorage {
       ? _prefs.remove(_gameStateKey)
       : _prefs.setString(_gameStateKey, jsonEncode(state.toJson()));
 
-  /// Server game id, or null for a game that couldn't be created on the server.
+  /// Server game id, or null when the game is local (see [localGameId]).
   int? get gameId => _prefs.getInt(_gameIdKey);
 
   Future<void> setGameId(int? id) =>
       id == null ? _prefs.remove(_gameIdKey) : _prefs.setInt(_gameIdKey, id);
+
+  /// Row id in the local games DB for a guest/offline game awaiting upload.
+  /// Random per-install id sent with every API request so the backend can
+  /// tie guest activity together (analytics).
+  String get anonId {
+    final existing = _prefs.getString(_anonIdKey);
+    if (existing != null) return existing;
+    final rnd = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 variant
+    final hex = [for (final b in bytes) b.toRadixString(16).padLeft(2, '0')].join();
+    final id = '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-'
+        '${hex.substring(16, 20)}-${hex.substring(20)}';
+    _prefs.setString(_anonIdKey, id);
+    return id;
+  }
+
+  int? get localGameId => _prefs.getInt(_localGameIdKey);
+
+  Future<void> setLocalGameId(int? id) =>
+      id == null ? _prefs.remove(_localGameIdKey) : _prefs.setInt(_localGameIdKey, id);
 
   String? get locale => _prefs.getString(_localeKey);
   Future<void> setLocale(String code) => _prefs.setString(_localeKey, code);

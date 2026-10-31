@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'core/theme.dart';
 import 'data/models.dart';
 import 'features/game/game_play_screen.dart';
-import 'features/game/game_setup_screen.dart';
 import 'features/game/round_results_screen.dart';
 import 'features/history/game_history_screen.dart';
 import 'features/login_screen.dart';
@@ -42,27 +41,23 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(authProvider, (_, _) => refresh.value++);
   ref.onDispose(refresh.dispose);
 
-  final user = ref.read(authProvider);
   final game = ref.read(gameProvider);
 
   return GoRouter(
     navigatorKey: _rootKey,
     refreshListenable: refresh,
-    initialLocation: user == null ? '/login' : (game != null ? _gameLocation(game) : '/'),
+    initialLocation: game != null ? _gameLocation(game) : '/',
     redirect: (context, state) {
-      final loggedIn = ref.read(authProvider) != null;
       final loc = state.matchedLocation;
-      if (!loggedIn) return loc == '/login' ? null : '/login';
-      if (loc == '/login') {
-        final g = ref.read(gameProvider);
-        return g != null ? _gameLocation(g) : '/';
-      }
       if ((loc == '/play' || loc == '/results') && ref.read(gameProvider) == null) return '/';
-      if (loc == '/setup' && state.extra is! GameTheme) return '/';
       return null;
     },
     routes: [
-      GoRoute(path: '/login', pageBuilder: (_, s) => _page(s, const LoginScreen())),
+      GoRoute(
+        path: '/login',
+        parentNavigatorKey: _rootKey,
+        pageBuilder: (_, s) => _page(s, const LoginScreen()),
+      ),
       StatefulShellRoute.indexedStack(
         pageBuilder: (context, state, shell) => _page(state, _HomeShell(shell: shell)),
         branches: [
@@ -90,11 +85,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(path: '/create', parentNavigatorKey: _rootKey, pageBuilder: (_, s) => _page(s, const CreateThemeScreen())),
-      GoRoute(
-        path: '/setup',
-        parentNavigatorKey: _rootKey,
-        pageBuilder: (_, s) => _page(s, GameSetupScreen(theme: s.extra! as GameTheme)),
-      ),
       GoRoute(
         path: '/history/:id',
         parentNavigatorKey: _rootKey,

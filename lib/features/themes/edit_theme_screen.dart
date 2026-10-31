@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,7 @@ import '../../data/api.dart';
 import '../../data/models.dart';
 import '../../state/providers.dart';
 import '../../ui/widgets.dart';
+import 'cover_picker.dart';
 import 'word_editor.dart';
 
 class EditThemeScreen extends ConsumerStatefulWidget {
@@ -22,10 +25,13 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
   GameTheme? _theme;
   bool _loading = true;
   final _name = TextEditingController();
+  final _summary = TextEditingController();
   bool _public = false;
   final List<EditableEntry> _newWords = [EditableEntry()];
   bool _saving = false;
   bool _togglingVisibility = false;
+  bool _coverBusy = false;
+  Uint8List? _pendingCover;
   String? _error;
   String? _visibilityError;
 
@@ -38,6 +44,7 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
   @override
   void dispose() {
     _name.dispose();
+    _summary.dispose();
     for (final w in _newWords) {
       w.ctrl.dispose();
     }
@@ -51,6 +58,7 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
       setState(() {
         _theme = theme;
         _name.text = theme.name;
+        _summary.text = theme.summary;
         _public = theme.isPublic;
       });
     } catch (_) {
@@ -81,6 +89,49 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
       if (mounted) setState(() => _visibilityError = e.isForbidden ? t.et_errForbidden : t.et_errVisibility);
     } finally {
       if (mounted) setState(() => _togglingVisibility = false);
+    }
+  }
+
+  /// Uploads right away, like visibility; the preview shows the picked image meanwhile.
+  Future<void> _changeCover() async {
+    final theme = _theme;
+    if (theme == null || _coverBusy) return;
+    final t = ref.read(tProvider);
+    final picked = await pickCover(context, t);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _coverBusy = true;
+      _pendingCover = picked.bytes;
+    });
+    try {
+      final updated = await ref.read(apiProvider).uploadCoverImage(theme.id, picked.bytes, picked.filename);
+      if (mounted) setState(() => _theme = updated);
+    } catch (e) {
+      if (mounted) showToast(context, coverErrorMessage(t, e), error: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _coverBusy = false;
+          _pendingCover = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _removeCover() async {
+    final theme = _theme;
+    if (theme == null || _coverBusy) return;
+    final t = ref.read(tProvider);
+    setState(() => _coverBusy = true);
+    try {
+      final api = ref.read(apiProvider);
+      await api.deleteCoverImage(theme.id);
+      final updated = await api.getTheme(theme.id);
+      if (mounted) setState(() => _theme = updated);
+    } catch (_) {
+      if (mounted) showToast(context, t.ct_coverUploadFailed, error: true);
+    } finally {
+      if (mounted) setState(() => _coverBusy = false);
     }
   }
 
@@ -137,6 +188,7 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
       await ref.read(apiProvider).updateTheme(
             theme.id,
             name: name.trim(),
+            summary: _summary.text.trim(),
             description: ThemeDescription(
               words: {...theme.description.words, for (final w in valid) w.trimmed: w.difficulty},
               teams: theme.description.teams,
@@ -178,6 +230,15 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  CoverPicker(
+                                    t: t,
+                                    url: theme.coverImageUrl,
+                                    bytes: _pendingCover,
+                                    busy: _coverBusy,
+                                    onPick: _changeCover,
+                                    onRemove: _removeCover,
+                                  ),
+                                  const SizedBox(height: 16),
                                   SectionLabel(t.et_nameLabel),
                                   TextField(
                                     controller: _name,
@@ -188,6 +249,15 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
                                   const SizedBox(height: 4),
                                   Text(t.ct_nameCounter(_name.text.length, wordCount(_name.text)),
                                       style: TextStyle(fontSize: 12, color: c.textA(0.6))),
+                                  const SizedBox(height: 16),
+                                  SectionLabel(t.ct_summaryLabel),
+                                  TextField(
+                                    controller: _summary,
+                                    maxLength: 255,
+                                    minLines: 1,
+                                    maxLines: 3,
+                                    decoration: InputDecoration(hintText: t.ct_summaryPlaceholder),
+                                  ),
                                   const SizedBox(height: 8),
                                   SwitchListTile.adaptive(
                                     contentPadding: EdgeInsets.zero,
@@ -202,11 +272,12 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            SectionLabel(t.et_teamsLabel),
-                            _ReadOnlyChips(items: theme.description.teams),
+                            _CollapsibleChips(title: t.et_teamsLabel, items: theme.description.teams),
                             const SizedBox(height: 12),
-                            SectionLabel(t.et_existingWords(theme.description.words.length)),
-                            _ReadOnlyChips(items: theme.description.words.keys.toList()),
+                            _CollapsibleChips(
+                              title: t.et_existingWords(theme.description.words.length),
+                              items: theme.description.words.keys.toList(),
+                            ),
                             const SizedBox(height: 12),
                             GameCard(
                               child: Column(
@@ -248,30 +319,39 @@ class _EditThemeScreenState extends ConsumerState<EditThemeScreen> {
   }
 }
 
-class _ReadOnlyChips extends StatelessWidget {
-  const _ReadOnlyChips({required this.items});
+class _CollapsibleChips extends StatelessWidget {
+  const _CollapsibleChips({required this.title, required this.items});
 
+  final String title;
   final List<String> items;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 200),
-      child: Tile(
-        child: SingleChildScrollView(
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final item in items)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(10)),
-                  child: Text(item, style: TextStyle(fontSize: 13, color: c.textA(0.75))),
-                ),
-            ],
-          ),
+    return Tile(
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final item in items)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(10)),
+                      child: Text(item, style: TextStyle(fontSize: 13, color: c.textA(0.75))),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
