@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../core/errors.dart';
+import '../../data/api.dart';
 import '../../i18n/translations.dart';
 import '../../state/providers.dart';
 import '../../ui/widgets.dart';
@@ -122,7 +124,7 @@ class _CreateThemeScreenState extends ConsumerState<CreateThemeScreen> {
       if (mounted) context.pop(true);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e.toString());
+        setState(() => _error = e is ApiException && e.isConflict ? t.ct_errFailed : friendlyError(e, t));
         _scroll.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     } finally {

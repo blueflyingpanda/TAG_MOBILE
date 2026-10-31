@@ -13,7 +13,7 @@ const googleNativeAuthUrl = '$apiBase/auth/google';
 const googleWebClientId =
     '356207976842-m8hlg69cp2f9j2dhc1tdo0446g797po8.apps.googleusercontent.com';
 
-const shareBaseUrl = 'https://blueflyingpanda.github.io/TAG/theme';
+const shareBaseUrl = 'https://tag-api.servegame.com/share/themes';
 
 const contactEmail = 'ilya.sagaidac@gmail.com';
 const privacyPolicyUrl = 'https://blueflyingpanda.github.io/TAG/privacy.html';

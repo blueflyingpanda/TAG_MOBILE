@@ -26,8 +26,14 @@ class ProfileButton extends ConsumerWidget {
     final t = ref.watch(tProvider);
     return IconButton(
       tooltip: t.nav_profileAlt,
-      onPressed: () => showModalBottomSheet(context: context, builder: (_) => const ProfileSheet()),
-      icon: user == null ? const Icon(Icons.account_circle_outlined, size: 32) : Avatar(user: user, size: 32),
+      onPressed: () => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => const ProfileSheet(),
+      ),
+      icon: user == null
+          ? const Icon(Icons.account_circle_outlined, size: 32)
+          : Avatar(user: user, size: 32),
     );
   }
 }
@@ -43,7 +49,11 @@ class Avatar extends StatelessWidget {
     final c = context.colors;
     final initial = Text(
       user.username.isEmpty ? '?' : user.username[0].toUpperCase(),
-      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * 0.45),
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+        fontSize: size * 0.45,
+      ),
     );
     final picture = user.picture;
     return Container(
@@ -83,7 +93,10 @@ class ProfileSheet extends ConsumerWidget {
         title: Text(t.nav_deleteAccountTitle),
         content: Text(t.nav_deleteAccountBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.ct_cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(t.ct_cancel),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: c.error),
             onPressed: () => Navigator.pop(context, true),
@@ -97,7 +110,12 @@ class ProfileSheet extends ConsumerWidget {
     try {
       await ref.read(authProvider.notifier).deleteAccount();
     } catch (_) {
-      messenger.showSnackBar(SnackBar(content: Text(t.nav_deleteAccountFailed), backgroundColor: c.error));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(t.nav_deleteAccountFailed),
+          backgroundColor: c.error,
+        ),
+      );
     }
   }
 
@@ -108,11 +126,13 @@ class ProfileSheet extends ConsumerWidget {
     final c = context.colors;
     final locale = ref.watch(localeProvider);
     final mode = ref.watch(themeModeProvider);
-    final platformDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
-    final isDark = mode == ThemeMode.dark || (mode == ThemeMode.system && platformDark);
+    final platformDark =
+        MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark =
+        mode == ThemeMode.dark || (mode == ThemeMode.system && platformDark);
 
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -120,8 +140,15 @@ class ProfileSheet extends ConsumerWidget {
             if (user != null) ...[
               Avatar(user: user, size: 64),
               const SizedBox(height: 10),
-              Text(user.username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              if (user.email != null) Text(user.email!, style: TextStyle(color: c.textA(0.7))),
+              Text(
+                user.username,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (user.email != null)
+                Text(user.email!, style: TextStyle(color: c.textA(0.7))),
               const SizedBox(height: 20),
             ],
             Tile(
@@ -131,7 +158,9 @@ class ProfileSheet extends ConsumerWidget {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.translate_rounded),
-                    title: Text(locale == 'en' ? t.ts_langEnglish : t.ts_langRussian),
+                    title: Text(
+                      locale == 'en' ? t.ts_langEnglish : t.ts_langRussian,
+                    ),
                     trailing: SegmentedButton<String>(
                       showSelectedIcon: false,
                       segments: const [
@@ -139,15 +168,22 @@ class ProfileSheet extends ConsumerWidget {
                         ButtonSegment(value: 'ru', label: Text('🇷🇺')),
                       ],
                       selected: {locale},
-                      onSelectionChanged: (s) => ref.read(localeProvider.notifier).set(s.first),
+                      onSelectionChanged: (s) =>
+                          ref.read(localeProvider.notifier).set(s.first),
                     ),
                   ),
                   Divider(height: 1, color: c.textA(0.08)),
                   SwitchListTile.adaptive(
-                    secondary: Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
+                    secondary: Icon(
+                      isDark
+                          ? Icons.dark_mode_rounded
+                          : Icons.light_mode_rounded,
+                    ),
                     title: Text(t.nav_toggleDark),
                     value: isDark,
-                    onChanged: (v) => ref.read(themeModeProvider.notifier).set(v ? ThemeMode.dark : ThemeMode.light),
+                    onChanged: (v) => ref
+                        .read(themeModeProvider.notifier)
+                        .set(v ? ThemeMode.dark : ThemeMode.light),
                   ),
                 ],
               ),
@@ -178,14 +214,23 @@ class ProfileSheet extends ConsumerWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 TextButton(
-                  onPressed: () => launchUrl(Uri.parse(privacyPolicyUrl), mode: LaunchMode.externalApplication),
-                  child: Text(t.nav_privacyPolicy, style: TextStyle(color: c.textA(0.7))),
+                  onPressed: () => launchUrl(
+                    Uri.parse(privacyPolicyUrl),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  child: Text(
+                    t.nav_privacyPolicy,
+                    style: TextStyle(color: c.textA(0.7)),
+                  ),
                 ),
                 if (user != null) ...[
                   Text('•', style: TextStyle(color: c.textA(0.4))),
                   TextButton(
                     onPressed: () => _confirmDelete(context, ref),
-                    child: Text(t.nav_deleteAccount, style: TextStyle(color: c.error)),
+                    child: Text(
+                      t.nav_deleteAccount,
+                      style: TextStyle(color: c.error),
+                    ),
                   ),
                 ],
               ],

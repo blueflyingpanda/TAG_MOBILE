@@ -42,6 +42,18 @@ class Translations {
     required this.ts_create,
     required this.ts_unverifiedWarning,
     required this.ts_noThemes,
+    required this.ts_verifiedChip,
+    required this.ts_unverifiedChip,
+    required this.err_generic,
+    required this.err_network,
+    required this.err_retry,
+    required this.rr_total,
+    required this.ts_emptyMine,
+    required this.ts_emptyFavorites,
+    required this.ts_emptySearch,
+    required this.ts_clearFilters,
+    required this.ts_browseThemes,
+    required this.gh_emptyAction,
     required this.ts_importTitle,
     required this.ts_importPlaceholder,
     required this.ts_public,
@@ -95,6 +107,11 @@ class Translations {
     required this.gp_score,
     required this.gp_wordsRemaining,
     required this.gp_startRound,
+    required this.gp_swipeHintRight,
+    required this.gp_swipeHintLeft,
+    required this.gp_gotIt,
+    required this.home_resumeTitle,
+    required this.home_resumeAction,
     required this.rr_title,
     required this.rr_hint,
     required this.rr_noWords,
@@ -286,6 +303,18 @@ class Translations {
   final String ts_create;
   final String ts_unverifiedWarning;
   final String ts_noThemes;
+  final String ts_verifiedChip;
+  final String ts_unverifiedChip;
+  final String err_generic;
+  final String err_network;
+  final String err_retry;
+  final String rr_total;
+  final String ts_emptyMine;
+  final String ts_emptyFavorites;
+  final String ts_emptySearch;
+  final String ts_clearFilters;
+  final String ts_browseThemes;
+  final String gh_emptyAction;
   final String ts_importTitle;
   final String ts_importPlaceholder;
   final String ts_public;
@@ -339,6 +368,11 @@ class Translations {
   final String Function(int, int) gp_score;
   final String Function(int) gp_wordsRemaining;
   final String gp_startRound;
+  final String gp_swipeHintRight;
+  final String gp_swipeHintLeft;
+  final String gp_gotIt;
+  final String home_resumeTitle;
+  final String home_resumeAction;
   final String rr_title;
   final String rr_hint;
   final String rr_noWords;
@@ -531,6 +565,18 @@ final en = Translations(
   ts_create: 'Create Theme',
   ts_unverifiedWarning: 'Unverified themes may contain inappropriate content',
   ts_noThemes: 'No themes available. Import or Create a theme to get started.',
+  ts_verifiedChip: 'Verified',
+  ts_unverifiedChip: 'Unverified',
+  err_generic: 'Something went wrong. Please try again.',
+  err_network: 'Can\'t reach the server. Check your connection.',
+  err_retry: 'Retry',
+  rr_total: 'Total',
+  ts_emptyMine: 'You haven\'t created any themes yet. Create your first one!',
+  ts_emptyFavorites: 'No favourite themes yet. Tap the heart on a theme to save it here.',
+  ts_emptySearch: 'No themes match your search or filters.',
+  ts_clearFilters: 'Clear filters',
+  ts_browseThemes: 'Browse themes',
+  gh_emptyAction: 'Choose a theme',
   ts_importTitle: 'Import Theme',
   ts_importPlaceholder: 'Paste theme JSON here...\n\nExample format:\n{\n  "name": "My Theme",\n  "language": "en",\n  "description": {\n    "teams": ["Team 1", ...],\n    "words": { "word": { "difficulty": 1 }, ... }\n  }\n}',
   ts_public: 'Public',
@@ -584,6 +630,11 @@ final en = Translations(
   gp_score: (int score, int required) => '${score} / ${required}',
   gp_wordsRemaining: (int count) => '${count} words remaining',
   gp_startRound: 'Start Round',
+  gp_swipeHintRight: 'Swipe right: guessed',
+  gp_swipeHintLeft: 'Swipe left: skip',
+  gp_gotIt: 'Got it',
+  home_resumeTitle: 'Game in progress',
+  home_resumeAction: 'Resume game',
   rr_title: 'Round Results',
   rr_hint: 'Tap words to toggle between ✅ and ❌',
   rr_noWords: 'No words were processed in this round.',
@@ -776,6 +827,18 @@ final ru = Translations(
   ts_create: 'Создать тему',
   ts_unverifiedWarning: 'Непроверенные темы могут содержать неподходящий контент',
   ts_noThemes: 'Темы не найдены. Импортируйте или создайте тему.',
+  ts_verifiedChip: 'Проверено',
+  ts_unverifiedChip: 'Не проверено',
+  err_generic: 'Что-то пошло не так. Попробуйте ещё раз.',
+  err_network: 'Нет связи с сервером. Проверьте подключение.',
+  err_retry: 'Повторить',
+  rr_total: 'Всего',
+  ts_emptyMine: 'Вы ещё не создали ни одной темы. Создайте первую!',
+  ts_emptyFavorites: 'В избранном пока пусто. Нажмите на сердечко у темы, чтобы сохранить её здесь.',
+  ts_emptySearch: 'Темы по вашему запросу не найдены.',
+  ts_clearFilters: 'Сбросить фильтры',
+  ts_browseThemes: 'Смотреть темы',
+  gh_emptyAction: 'Выбрать тему',
   ts_importTitle: 'Импорт темы',
   ts_importPlaceholder: 'Вставьте JSON темы сюда...\n\nПример формата:\n{\n  "name": "Моя тема",\n  "language": "ru",\n  "description": {\n    "teams": ["Команда 1", ...],\n    "words": { "слово": { "difficulty": 1 }, ... }\n  }\n}',
   ts_public: 'Публичная',
@@ -829,6 +892,11 @@ final ru = Translations(
   gp_score: (int score, int required) => '${score} / ${required}',
   gp_wordsRemaining: (int count) => 'Осталось слов: ${count}',
   gp_startRound: 'Начать раунд',
+  gp_swipeHintRight: 'Свайп вправо: угадано',
+  gp_swipeHintLeft: 'Свайп влево: пропуск',
+  gp_gotIt: 'Понятно',
+  home_resumeTitle: 'Игра продолжается',
+  home_resumeAction: 'Продолжить игру',
   rr_title: 'Результаты раунда',
   rr_hint: 'Нажмите на слово, чтобы изменить результат',
   rr_noWords: 'В этом раунде слова не обрабатывались.',

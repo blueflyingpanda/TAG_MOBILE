@@ -13,6 +13,11 @@ import '../../state/providers.dart';
 import '../../ui/widgets.dart';
 import 'card_stack.dart';
 
+Color _colorOf(GameState game, String team) {
+  final i = game.settings.selectedTeams.indexOf(team);
+  return teamColor(i < 0 ? 0 : i);
+}
+
 /// Same cadence as the web deck: the next card rises 100ms into the exit.
 const _cardAdvanceDelay = Duration(milliseconds: 100);
 
@@ -58,7 +63,9 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
   int _computeRemaining() {
     final start = _timerStart;
     if (start == null) return _remaining;
-    final ms = _game.settings.roundTimer * 1000 - DateTime.now().difference(start).inMilliseconds;
+    final ms =
+        _game.settings.roundTimer * 1000 -
+        DateTime.now().difference(start).inMilliseconds;
     return ms <= 0 ? 0 : (ms / 1000).ceil();
   }
 
@@ -80,7 +87,11 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
 
   void _startRound() {
     final game = _game;
-    final words = availableWords(game.settings.theme, game.wordsUsed, game.settings.difficulty);
+    final words = availableWords(
+      game.settings.theme,
+      game.wordsUsed,
+      game.settings.difficulty,
+    );
     if (words.isEmpty) return;
     HapticFeedback.mediumImpact();
     final deck = shuffled(words);
@@ -114,7 +125,11 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
     final results = [..._results];
     final current = _currentWord;
     // Timed out with a word still on screen: offer it separately, no penalty.
-    final lastWord = timedOut && current != null && !_cheating && !results.any((r) => r.word == current)
+    final lastWord =
+        timedOut &&
+            current != null &&
+            !_cheating &&
+            !results.any((r) => r.word == current)
         ? current
         : null;
 
@@ -127,7 +142,9 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
       if (!mounted) return;
       ref.read(gameProvider.notifier).endRound(results, lastWord);
       _ending = false;
-      if (ref.read(gameProvider)?.hasPendingResults ?? false) context.go('/results');
+      if (ref.read(gameProvider)?.hasPendingResults ?? false) {
+        context.go('/results');
+      }
     });
   }
 
@@ -214,7 +231,11 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
     if (gameWinners.isNotEmpty && !_active) {
       body = _GameOver(game: game, winners: gameWinners, onNewGame: _newGame);
     } else if (!_active && !_ending) {
-      body = _RoundIntro(game: game, onStart: _startRound, onLeave: () => context.go('/'));
+      body = _RoundIntro(
+        game: game,
+        onStart: _startRound,
+        onLeave: () => context.go('/'),
+      );
     } else {
       body = _activeRound(game);
     }
@@ -232,7 +253,13 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
             child: KeyedSubtree(
-              key: ValueKey(gameWinners.isNotEmpty && !_active ? 'over' : (_active || _ending) ? 'round' : 'intro'),
+              key: ValueKey(
+                gameWinners.isNotEmpty && !_active
+                    ? 'over'
+                    : (_active || _ending)
+                    ? 'round'
+                    : 'intro',
+              ),
               child: body,
             ),
           ),
@@ -246,22 +273,32 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
     final c = context.colors;
     final guessed = _results.where((r) => r.guessed).length;
     final skipped = _results.length - guessed;
-    final backWord = !_ending && _active && !_paused && _wordIndex + 1 < _roundWords.length
+    final backWord =
+        !_ending && _active && !_paused && _wordIndex + 1 < _roundWords.length
         ? _roundWords[_wordIndex + 1]
         : null;
 
     Widget? overlay;
     if (_cheating) {
-      overlay = DeckPlaceholder(emoji: '⚠️', title: t.cs_cheatingTitle, subtitle: t.cs_cheatingDesc, danger: true);
+      overlay = DeckPlaceholder(
+        emoji: '⚠️',
+        title: t.cs_cheatingTitle,
+        subtitle: t.cs_cheatingDesc,
+        danger: true,
+      );
     } else if (_paused) {
-      overlay = DeckPlaceholder(emoji: '⏸️', title: t.cs_pausedTitle, subtitle: t.cs_pausedDesc);
+      overlay = DeckPlaceholder(
+        emoji: '⏸️',
+        title: t.cs_pausedTitle,
+        subtitle: t.cs_pausedDesc,
+      );
     }
 
     final banner = _cheating
         ? _Banner(text: t.gp_cheatingDetected, color: c.error)
         : _paused
-            ? _Banner(text: t.gp_roundPaused, color: c.text)
-            : null;
+        ? _Banner(text: t.gp_roundPaused, color: c.text)
+        : null;
 
     return Column(
       children: [
@@ -269,20 +306,33 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
           child: Row(
             children: [
-              Text(t.gp_round(game.currentRound), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              Text(
+                t.gp_round(game.currentRound),
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const Spacer(),
               Flexible(
                 child: Text(
                   game.currentTeam,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.success),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: teamColor(game.currentTeamIndex),
+                  ),
                 ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 8),
-        Countdown(seconds: _remaining, warning: _remaining <= 5 && _remaining > 0 && !_paused),
+        Countdown(
+          seconds: _remaining,
+          warning: _remaining <= 10 && _remaining > 0 && !_paused,
+        ),
         const SizedBox(height: 6),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -290,10 +340,16 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
             _CounterLabel(value: skipped, color: c.error, label: t.gp_skipped),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text('${_results.length} / ${_roundWords.length}',
-                  style: TextStyle(fontSize: 12, color: c.textA(0.6))),
+              child: Text(
+                '${_results.length} / ${_roundWords.length}',
+                style: TextStyle(fontSize: 12, color: c.textA(0.6)),
+              ),
             ),
-            _CounterLabel(value: guessed, color: c.success, label: t.gp_guessed),
+            _CounterLabel(
+              value: guessed,
+              color: c.success,
+              label: t.gp_guessed,
+            ),
           ],
         ),
         AnimatedSwitcher(
@@ -301,23 +357,31 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
           transitionBuilder: (child, a) => FadeTransition(
             opacity: a,
             child: SlideTransition(
-              position: Tween(begin: const Offset(0, -0.3), end: Offset.zero).animate(a),
+              position: Tween(
+                begin: const Offset(0, -0.3),
+                end: Offset.zero,
+              ).animate(a),
               child: child,
             ),
           ),
           child: banner ?? const SizedBox(height: 8),
         ),
         Expanded(
-          child: Center(
-            child: CardStack(
-              key: _deck,
-              index: _wordIndex,
-              currentWord: _currentWord,
-              backWord: backWord,
-              locked: _exiting || _cheating || _paused,
-              overlay: overlay,
-              onSwipe: _handleWord,
-            ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Center(
+                child: CardStack(
+                  key: _deck,
+                  index: _wordIndex,
+                  currentWord: _currentWord,
+                  backWord: backWord,
+                  locked: _exiting || _cheating || _paused,
+                  overlay: overlay,
+                  onSwipe: _handleWord,
+                ),
+              ),
+            ],
           ),
         ),
         Padding(
@@ -325,7 +389,11 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 320),
             child: _paused
-                ? GameButton(label: t.gp_resume, onPressed: _resume, expand: false)
+                ? GameButton(
+                    label: t.gp_resume,
+                    onPressed: _resume,
+                    expand: false,
+                  )
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -335,14 +403,18 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
                             child: GameButton(
                               label: t.gp_skipBtn,
                               variant: ButtonVariant.error,
-                              onPressed: _cheating ? null : () => _handleWord(false),
+                              onPressed: _cheating
+                                  ? null
+                                  : () => _handleWord(false),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: GameButton(
                               label: t.gp_guessedBtn,
-                              onPressed: _cheating ? null : () => _handleWord(true),
+                              onPressed: _cheating
+                                  ? null
+                                  : () => _handleWord(true),
                             ),
                           ),
                         ],
@@ -352,7 +424,10 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
                         label: '⏸️ ${_pausedOnce ? t.gp_paused : t.gp_pause}',
                         variant: ButtonVariant.muted,
                         expand: false,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
                         fontSize: 14,
                         onPressed: _cheating || _pausedOnce ? null : _pause,
                       ),
@@ -366,7 +441,11 @@ class _GamePlayScreenState extends ConsumerState<GamePlayScreen> {
 }
 
 class _CounterLabel extends StatelessWidget {
-  const _CounterLabel({required this.value, required this.color, required this.label});
+  const _CounterLabel({
+    required this.value,
+    required this.color,
+    required this.label,
+  });
 
   final int value;
   final Color color;
@@ -374,12 +453,15 @@ class _CounterLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        children: [
-          RollingCounter(value: value, color: color),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 12, color: context.colors.textA(0.6))),
-        ],
-      );
+    children: [
+      RollingCounter(value: value, color: color),
+      const SizedBox(height: 2),
+      Text(
+        label,
+        style: TextStyle(fontSize: 12, color: context.colors.textA(0.6)),
+      ),
+    ],
+  );
 }
 
 class _Banner extends StatelessWidget {
@@ -400,14 +482,25 @@ class _Banner extends StatelessWidget {
         borderRadius: gameBorderRadius,
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
-      child: Text(text,
-          textAlign: TextAlign.center, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14)),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+      ),
     );
   }
 }
 
 class _RoundIntro extends ConsumerWidget {
-  const _RoundIntro({required this.game, required this.onStart, required this.onLeave});
+  const _RoundIntro({
+    required this.game,
+    required this.onStart,
+    required this.onLeave,
+  });
 
   final GameState game;
   final VoidCallback onStart;
@@ -417,7 +510,11 @@ class _RoundIntro extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(tProvider);
     final c = context.colors;
-    final remaining = availableWords(game.settings.theme, game.wordsUsed, game.settings.difficulty).length;
+    final remaining = availableWords(
+      game.settings.theme,
+      game.wordsUsed,
+      game.settings.difficulty,
+    ).length;
 
     return Column(
       children: [
@@ -440,36 +537,65 @@ class _RoundIntro extends ConsumerWidget {
                     padding: const EdgeInsets.all(28),
                     child: Column(
                       children: [
-                        Text(t.gp_round(game.currentRound),
-                            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w700)),
+                        Text(
+                          t.gp_round(game.currentRound),
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(height: 8),
-                        Text(game.currentTeam,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: c.success)),
+                        Text(
+                          game.currentTeam,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                            color: teamColor(game.currentTeamIndex),
+                          ),
+                        ),
                         const SizedBox(height: 20),
                         Tile(
                           padding: const EdgeInsets.all(18),
                           child: Column(
                             children: [
-                              Text(t.gp_currentScores,
-                                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                              Text(
+                                t.gp_currentScores,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                               const SizedBox(height: 12),
                               for (final e in game.teamScores.entries)
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
                                   child: Row(
                                     children: [
+                                      TeamDot(color: _colorOf(game, e.key)),
+                                      const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
                                           e.key,
                                           style: TextStyle(
                                             fontWeight:
-                                                e.key == game.currentTeam ? FontWeight.w700 : FontWeight.w400,
+                                                e.key == game.currentTeam
+                                                ? FontWeight.w700
+                                                : FontWeight.w400,
                                           ),
                                         ),
                                       ),
-                                      Text(t.gp_score(e.value, game.settings.pointsRequired),
-                                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      Text(
+                                        t.gp_score(
+                                          e.value,
+                                          game.settings.pointsRequired,
+                                        ),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -477,7 +603,10 @@ class _RoundIntro extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Text(t.gp_wordsRemaining(remaining), style: TextStyle(color: c.textA(0.7))),
+                        Text(
+                          t.gp_wordsRemaining(remaining),
+                          style: TextStyle(color: c.textA(0.7)),
+                        ),
                         const SizedBox(height: 20),
                         GameButton(
                           label: t.gp_startRound,
@@ -499,7 +628,11 @@ class _RoundIntro extends ConsumerWidget {
 }
 
 class _GameOver extends ConsumerWidget {
-  const _GameOver({required this.game, required this.winners, required this.onNewGame});
+  const _GameOver({
+    required this.game,
+    required this.winners,
+    required this.onNewGame,
+  });
 
   final GameState game;
   final List<String> winners;
@@ -509,55 +642,106 @@ class _GameOver extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(tProvider);
     final c = context.colors;
-    final sorted = game.teamScores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = game.teamScores.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final winnerColor = winners.length == 1
+        ? _colorOf(game, winners.first)
+        : c.success;
 
-    return Column(
+    return Stack(
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: _SpringIn(
-              child: GameCard(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  children: [
-                    const Text('🎉', style: TextStyle(fontSize: 52)),
-                    const SizedBox(height: 8),
-                    Text(t.gp_gameOver, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 12),
-                    Text(
-                      winners.length == 1 ? t.gp_singleWinner(winners.first) : t.gp_multipleWinners(winners.join(' & ')),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: c.success),
-                    ),
-                    const SizedBox(height: 20),
-                    for (final e in sorted)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Tile(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(e.key,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                              ),
-                              Text('${e.value}',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.success)),
-                            ],
+        Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: _SpringIn(
+                  child: GameCard(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      children: [
+                        const Text('🎉', style: TextStyle(fontSize: 52)),
+                        const SizedBox(height: 8),
+                        Text(
+                          t.gp_gameOver,
+                          style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
-                  ],
+                        const SizedBox(height: 12),
+                        Text(
+                          winners.length == 1
+                              ? t.gp_singleWinner(winners.first)
+                              : t.gp_multipleWinners(winners.join(' & ')),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: winnerColor,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        for (final e in sorted)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Tile(
+                              child: Row(
+                                children: [
+                                  TeamDot(
+                                    color: _colorOf(game, e.key),
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      e.key,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                  TweenAnimationBuilder<int>(
+                                    tween: IntTween(begin: 0, end: e.value),
+                                    duration: const Duration(milliseconds: 900),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (context, v, _) => Text(
+                                      '$v',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: winners.contains(e.key)
+                                            ? _colorOf(game, e.key)
+                                            : c.success,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: GameButton(
+                label: t.gp_newGame,
+                onPressed: onNewGame,
+                expand: false,
+              ),
+            ),
+          ],
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: GameButton(label: t.gp_newGame, onPressed: onNewGame, expand: false),
-        ),
+        const Positioned.fill(child: ConfettiBurst()),
       ],
     );
   }
@@ -571,13 +755,13 @@ class _SpringIn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeOutBack,
-        child: child,
-        builder: (context, v, child) => Opacity(
-          opacity: v.clamp(0.0, 1.0),
-          child: Transform.scale(scale: 0.9 + 0.1 * v, child: child),
-        ),
-      );
+    tween: Tween(begin: 0, end: 1),
+    duration: const Duration(milliseconds: 450),
+    curve: Curves.easeOutBack,
+    child: child,
+    builder: (context, v, child) => Opacity(
+      opacity: v.clamp(0.0, 1.0),
+      child: Transform.scale(scale: 0.9 + 0.1 * v, child: child),
+    ),
+  );
 }

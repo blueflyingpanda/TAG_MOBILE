@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config.dart';
+import '../../core/errors.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../state/providers.dart';
@@ -43,7 +44,7 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
       final theme = await ref.read(apiProvider).getTheme(widget.themeId);
       if (mounted) setState(() => _theme = theme);
     } catch (e) {
-      if (mounted) setState(() => _error = ref.read(tProvider).td_failedLoad);
+      if (mounted) setState(() => _error = friendlyError(e, ref.read(tProvider)));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -76,7 +77,8 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
     ref.read(apiProvider).trackEvent('theme_shared', {'theme_id': theme.id, 'method': 'native_share'});
     final box = context.findRenderObject() as RenderBox?;
     SharePlus.instance.share(ShareParams(
-      uri: Uri.parse('$shareBaseUrl/${theme.id}/'),
+      // text and uri can't be combined; the link in the text unfurls into the og preview.
+      text: '${theme.name}\n$shareBaseUrl/${theme.id}/',
       subject: theme.name,
       sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
     ));
@@ -165,7 +167,15 @@ class _ThemeDetailsScreenState extends ConsumerState<ThemeDetailsScreen> {
                 ? StatusView(
                     message: _error ?? t.td_notFound,
                     isError: true,
-                    action: GameButton(label: t.td_back, expand: false, onPressed: () => context.pop()),
+                    action: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        GameButton(label: t.err_retry, expand: false, icon: Icons.refresh_rounded, onPressed: _load),
+                        GameButton(label: t.td_back, expand: false, variant: ButtonVariant.muted, onPressed: () => context.pop()),
+                      ],
+                    ),
                   )
                 : _details(theme),
       ),

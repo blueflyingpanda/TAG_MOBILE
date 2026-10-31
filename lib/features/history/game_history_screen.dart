@@ -4,13 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
+import '../../core/errors.dart';
 import '../../data/models.dart';
 import '../../state/providers.dart';
 import '../../ui/widgets.dart';
 import '../profile_sheet.dart';
 
 String _formatDate(BuildContext context, DateTime d) =>
-    DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).add_Hm().format(d);
+    DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag())
+        .add_Hm()
+        .format(d);
 
 class GameHistoryScreen extends ConsumerStatefulWidget {
   const GameHistoryScreen({super.key});
@@ -40,7 +43,7 @@ class _GameHistoryScreenState extends ConsumerState<GameHistoryScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = friendlyError(e, ref.read(tProvider)));
     }
   }
 
@@ -84,13 +87,37 @@ class _GameHistoryScreenState extends ConsumerState<GameHistoryScreen> {
                 child: StatusView(
                   message: _error!,
                   isError: true,
-                  action: GameButton(label: t.gh_back, expand: false, onPressed: _load),
+                  action: GameButton(
+                    label: t.err_retry,
+                    expand: false,
+                    icon: Icons.refresh_rounded,
+                    onPressed: _load,
+                  ),
                 ),
               )
             else if (games == null)
-              const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: SliverList.separated(
+                  itemCount: 5,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (_, _) => const _GameRowSkeleton(),
+                ),
+              )
             else if (games.isEmpty)
-              SliverFillRemaining(hasScrollBody: false, child: StatusView(message: t.gh_noGames))
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: StatusView(
+                  icon: Icons.history_toggle_off_rounded,
+                  message: t.gh_noGames,
+                  action: GameButton(
+                    label: t.gh_emptyAction,
+                    expand: false,
+                    icon: Icons.style_rounded,
+                    onPressed: () => context.go('/'),
+                  ),
+                ),
+              )
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -112,11 +139,31 @@ class _GameHistoryScreenState extends ConsumerState<GameHistoryScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(g.themeName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                                Text(
+                                  g.themeName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
-                                Text(t.gh_language(g.themeLanguage.toUpperCase()), style: muted),
-                                Text(t.gh_started(_formatDate(context, g.startedAt)), style: muted),
-                                if (g.endedAt != null) Text(t.gh_ended(_formatDate(context, g.endedAt!)), style: muted),
+                                Text(
+                                  t.gh_language(g.themeLanguage.toUpperCase()),
+                                  style: muted,
+                                ),
+                                Text(
+                                  t.gh_started(
+                                    _formatDate(context, g.startedAt),
+                                  ),
+                                  style: muted,
+                                ),
+                                if (g.endedAt != null)
+                                  Text(
+                                    t.gh_ended(
+                                      _formatDate(context, g.endedAt!),
+                                    ),
+                                    style: muted,
+                                  ),
                               ],
                             ),
                           ),
@@ -124,11 +171,17 @@ class _GameHistoryScreenState extends ConsumerState<GameHistoryScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              _StatusChip(done: done, label: done ? t.gh_completed : t.gh_inProgress),
+                              _StatusChip(
+                                done: done,
+                                label: done ? t.gh_completed : t.gh_inProgress,
+                              ),
                               const SizedBox(height: 6),
                               Text(t.gh_pointsRequired(g.points), style: muted),
                               Text(t.gh_roundTime(g.round), style: muted),
-                              Text(t.gh_skipPenalty(g.skipPenalty), style: muted),
+                              Text(
+                                t.gh_skipPenalty(g.skipPenalty),
+                                style: muted,
+                              ),
                             ],
                           ),
                         ],
@@ -156,8 +209,18 @@ class _StatusChip extends StatelessWidget {
     final color = done ? c.success : c.error;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
     );
   }
 }
@@ -179,9 +242,14 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(apiProvider).getGame(widget.gameId).then(
+    ref
+        .read(apiProvider)
+        .getGame(widget.gameId)
+        .then(
           (g) => mounted ? setState(() => _game = g) : null,
-          onError: (Object e) => mounted ? setState(() => _error = e.toString()) : null,
+          onError: (Object e) => mounted
+              ? setState(() => _error = friendlyError(e, ref.read(tProvider)))
+              : null,
         );
   }
 
@@ -198,8 +266,14 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
         builder: (context) => AlertDialog(
           content: Text('${t.gh_resumeGame}?'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.ct_cancel)),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t.gh_resumeGame)),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(t.ct_cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(t.gh_resumeGame),
+            ),
           ],
         ),
       );
@@ -225,7 +299,7 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
       ref.read(gameProvider.notifier).resume(state, g.id);
       if (mounted) context.go('/play');
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = friendlyError(e, ref.read(tProvider)));
     } finally {
       if (mounted) setState(() => _resuming = false);
     }
@@ -244,8 +318,8 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
         top: false,
         child: g == null
             ? (_error != null
-                ? StatusView(message: _error!, isError: true)
-                : const Center(child: CircularProgressIndicator()))
+                  ? StatusView(message: _error!, isError: true)
+                  : const Center(child: CircularProgressIndicator()))
             : Column(
                 children: [
                   Expanded(
@@ -256,14 +330,33 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(g.themeName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                              Text(
+                                g.themeName,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               const SizedBox(height: 8),
-                              Text(t.gh_language(g.themeLanguage.toUpperCase()), style: muted),
+                              Text(
+                                t.gh_language(g.themeLanguage.toUpperCase()),
+                                style: muted,
+                              ),
                               Text(t.gh_pointsRequired(g.points), style: muted),
-                              Text(t.gh_skipPenalty(g.skipPenalty), style: muted),
+                              Text(
+                                t.gh_skipPenalty(g.skipPenalty),
+                                style: muted,
+                              ),
                               const SizedBox(height: 8),
-                              Text(t.gh_started(_formatDate(context, g.startedAt)), style: muted),
-                              if (g.endedAt != null) Text(t.gh_ended(_formatDate(context, g.endedAt!)), style: muted),
+                              Text(
+                                t.gh_started(_formatDate(context, g.startedAt)),
+                                style: muted,
+                              ),
+                              if (g.endedAt != null)
+                                Text(
+                                  t.gh_ended(_formatDate(context, g.endedAt!)),
+                                  style: muted,
+                                ),
                             ],
                           ),
                         ),
@@ -278,12 +371,19 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
                               else
                                 for (final team in g.info.teams)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 3,
+                                    ),
                                     child: Row(
                                       children: [
                                         Expanded(child: Text(team.name)),
-                                        Text('${team.score}',
-                                            style: TextStyle(fontWeight: FontWeight.w700, color: c.success)),
+                                        Text(
+                                          '${team.score}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: c.success,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -296,16 +396,31 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SectionLabel(t.gh_gameStatus),
-                              Text(t.gh_currentRound(g.info.currentRound ?? g.round), style: muted),
+                              Text(
+                                t.gh_currentRound(
+                                  g.info.currentRound ?? g.round,
+                                ),
+                                style: muted,
+                              ),
                               Text(
                                 t.gh_currentTeam(
-                                  g.info.currentTeamIndex != null && g.info.currentTeamIndex! < g.info.teams.length
-                                      ? g.info.teams[g.info.currentTeamIndex!].name
+                                  g.info.currentTeamIndex != null &&
+                                          g.info.currentTeamIndex! <
+                                              g.info.teams.length
+                                      ? g
+                                            .info
+                                            .teams[g.info.currentTeamIndex!]
+                                            .name
                                       : 'Unknown',
                                 ),
                                 style: muted,
                               ),
-                              Text(g.endedAt != null ? t.gh_completed : t.gh_inProgress, style: muted),
+                              Text(
+                                g.endedAt != null
+                                    ? t.gh_completed
+                                    : t.gh_inProgress,
+                                style: muted,
+                              ),
                             ],
                           ),
                         ),
@@ -328,6 +443,30 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
                     ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+class _GameRowSkeleton extends StatelessWidget {
+  const _GameRowSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Pulse(
+      child: Tile(
+        color: context.colors.card,
+        padding: const EdgeInsets.all(16),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SkeletonBox(width: 180, height: 16),
+            SizedBox(height: 10),
+            SkeletonBox(width: 120, height: 12),
+            SizedBox(height: 8),
+            SkeletonBox(width: 90, height: 12),
+          ],
+        ),
       ),
     );
   }

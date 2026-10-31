@@ -85,18 +85,19 @@ final gameBorderRadius = BorderRadius.circular(gameRadius);
 
 ThemeData buildTheme(Brightness brightness) {
   final c = brightness == Brightness.dark ? AppColors.dark : AppColors.light;
-  final scheme = ColorScheme.fromSeed(
-    seedColor: c.success,
-    brightness: brightness,
-  ).copyWith(
-    primary: c.success,
-    onPrimary: Colors.white,
-    secondary: c.primary,
-    error: c.error,
-    surface: c.card,
-    onSurface: c.text,
-    surfaceContainerHighest: c.card,
-  );
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: c.success,
+        brightness: brightness,
+      ).copyWith(
+        primary: c.success,
+        onPrimary: Colors.white,
+        secondary: c.primary,
+        error: c.error,
+        surface: c.card,
+        onSurface: c.text,
+        surfaceContainerHighest: c.card,
+      );
 
   final base = ThemeData(
     useMaterial3: true,
@@ -136,7 +137,9 @@ ThemeData buildTheme(Brightness brightness) {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: outline,
       enabledBorder: outline,
-      focusedBorder: outline.copyWith(borderSide: BorderSide(color: c.success, width: 2)),
+      focusedBorder: outline.copyWith(
+        borderSide: BorderSide(color: c.success, width: 2),
+      ),
       hintStyle: TextStyle(color: c.textA(0.4)),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -144,13 +147,17 @@ ThemeData buildTheme(Brightness brightness) {
       indicatorColor: c.success.withValues(alpha: 0.18),
       surfaceTintColor: Colors.transparent,
       iconTheme: WidgetStateProperty.resolveWith(
-        (s) => IconThemeData(color: s.contains(WidgetState.selected) ? c.success : c.textA(0.7)),
+        (s) => IconThemeData(
+          color: s.contains(WidgetState.selected) ? c.success : c.textA(0.7),
+        ),
       ),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (s) => TextStyle(
           fontFamily: 'Inter',
           fontSize: 12,
-          fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
+          fontWeight: s.contains(WidgetState.selected)
+              ? FontWeight.w700
+              : FontWeight.w500,
           color: s.contains(WidgetState.selected) ? c.success : c.textA(0.7),
         ),
       ),
@@ -187,7 +194,9 @@ ThemeData buildTheme(Brightness brightness) {
         (s) => s.contains(WidgetState.selected) ? c.success : c.textA(0.12),
       ),
       trackOutlineColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? Colors.transparent : c.textA(0.2),
+        (s) => s.contains(WidgetState.selected)
+            ? Colors.transparent
+            : c.textA(0.2),
       ),
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: c.success),
@@ -201,13 +210,17 @@ ThemeData buildTheme(Brightness brightness) {
 }
 
 SystemUiOverlayStyle systemBarsStyle(Brightness b) => SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarContrastEnforced: false,
-      statusBarIconBrightness: b == Brightness.dark ? Brightness.light : Brightness.dark,
-      statusBarBrightness: b,
-      systemNavigationBarIconBrightness: b == Brightness.dark ? Brightness.light : Brightness.dark,
-    );
+  statusBarColor: Colors.transparent,
+  systemNavigationBarColor: Colors.transparent,
+  systemNavigationBarContrastEnforced: false,
+  statusBarIconBrightness: b == Brightness.dark
+      ? Brightness.light
+      : Brightness.dark,
+  statusBarBrightness: b,
+  systemNavigationBarIconBrightness: b == Brightness.dark
+      ? Brightness.light
+      : Brightness.dark,
+);
 
 /// The app-wide radial gradient from index.css:
 /// `radial-gradient(circle at 85.54% 7.65%, start 0, mid 50%, end 100%)`.
@@ -219,24 +232,44 @@ class AppBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return LayoutBuilder(builder: (context, box) {
-      final w = box.maxWidth.isFinite ? box.maxWidth : 400.0;
-      final h = box.maxHeight.isFinite ? box.maxHeight : 800.0;
-      // CSS `circle` defaults to farthest-corner; Flutter's radius is relative
-      // to the shortest side.
-      final farthest = math.sqrt(math.pow(0.8554 * w, 2) + math.pow(0.9235 * h, 2));
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: c.bgEnd,
-          gradient: RadialGradient(
-            center: const Alignment(0.7108, -0.847),
-            radius: farthest / math.min(w, h),
-            colors: [c.bgStart, c.bgMid, c.bgEnd],
-            stops: const [0, 0.5, 1],
+    return LayoutBuilder(
+      builder: (context, box) {
+        final w = box.maxWidth.isFinite ? box.maxWidth : 400.0;
+        final h = box.maxHeight.isFinite ? box.maxHeight : 800.0;
+        // CSS `circle` defaults to farthest-corner; Flutter's radius is relative
+        // to the shortest side.
+        final farthest = math.sqrt(
+          math.pow(0.8554 * w, 2) + math.pow(0.9235 * h, 2),
+        );
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: c.bgEnd,
+            gradient: RadialGradient(
+              center: const Alignment(0.7108, -0.847),
+              radius: farthest / math.min(w, h),
+              colors: [c.bgStart, c.bgMid, c.bgEnd],
+              stops: const [0, 0.5, 1],
+            ),
           ),
-        ),
-        child: child,
-      );
-    });
+          child: child,
+        );
+      },
+    );
   }
 }
+
+/// One colour per team, by its position in the game's team list (same on web).
+const teamPalette = [
+  Color(0xFFEF4444),
+  Color(0xFF3B82F6),
+  Color(0xFF22C55E),
+  Color(0xFFF59E0B),
+  Color(0xFFA855F7),
+  Color(0xFFEC4899),
+  Color(0xFF14B8A6),
+  Color(0xFFF97316),
+  Color(0xFF6366F1),
+  Color(0xFF84CC16),
+];
+
+Color teamColor(int index) => teamPalette[index % teamPalette.length];

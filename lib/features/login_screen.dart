@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme.dart';
+import '../core/errors.dart';
 import '../data/auth.dart';
 import '../state/providers.dart';
 
@@ -28,7 +29,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on SignInCancelled {
       // User backed out of the account picker — not an error.
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = friendlyError(e, ref.read(tProvider)));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

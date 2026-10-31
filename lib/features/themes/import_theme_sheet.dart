@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../core/errors.dart';
 import '../../state/providers.dart';
 import '../../ui/widgets.dart';
 
@@ -128,7 +129,7 @@ class _ImportThemeSheetState extends ConsumerState<ImportThemeSheet> {
       await ref.read(apiProvider).createTheme(payload);
       if (mounted) _close(true);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = friendlyError(e, ref.read(tProvider)));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

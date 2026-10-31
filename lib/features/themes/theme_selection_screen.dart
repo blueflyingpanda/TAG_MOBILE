@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/errors.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
+import '../../i18n/translations.dart';
 import '../../state/providers.dart';
 import '../../ui/widgets.dart';
 import '../profile_sheet.dart';
@@ -19,7 +21,19 @@ class ThemeFilters {
     this.mine = false,
     this.favourites = false,
     this.unverified = false,
+    this.defaultOrder = 'id',
+    this.defaultDescending = false,
   });
+
+  /// Guests land on the most liked themes; signed-in users keep the old default.
+  factory ThemeFilters.defaults({required bool guest}) => guest
+      ? const ThemeFilters(
+          order: 'likes',
+          descending: true,
+          defaultOrder: 'likes',
+          defaultDescending: true,
+        )
+      : const ThemeFilters();
 
   final String search;
   final String order; // id | name | likes
@@ -27,13 +41,24 @@ class ThemeFilters {
   final bool mine;
   final bool favourites;
   final bool unverified;
+  final String defaultOrder;
+  final bool defaultDescending;
+
+  bool get sortChanged =>
+      order != defaultOrder || descending != defaultDescending;
 
   int get activeCount =>
-      (order != 'id' ? 1 : 0) +
-      (descending ? 1 : 0) +
+      (sortChanged ? 1 : 0) +
       (mine ? 1 : 0) +
       (favourites ? 1 : 0) +
       (unverified ? 1 : 0);
+
+  ThemeFilters reset() => ThemeFilters(
+    order: defaultOrder,
+    descending: defaultDescending,
+    defaultOrder: defaultOrder,
+    defaultDescending: defaultDescending,
+  );
 
   ThemeFilters copyWith({
     String? search,
@@ -49,6 +74,8 @@ class ThemeFilters {
     mine: mine ?? this.mine,
     favourites: favourites ?? this.favourites,
     unverified: unverified ?? this.unverified,
+    defaultOrder: defaultOrder,
+    defaultDescending: defaultDescending,
   );
 }
 
@@ -56,7 +83,8 @@ class ThemeFilters {
 /// (the web app keeps them in the URL).
 class ThemeFiltersNotifier extends Notifier<ThemeFilters> {
   @override
-  ThemeFilters build() => const ThemeFilters();
+  ThemeFilters build() =>
+      ThemeFilters.defaults(guest: ref.watch(authProvider) == null);
 
   void update(ThemeFilters f) => state = f;
 }
@@ -142,10 +170,89 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
     } catch (e) {
       if (!mounted || seq != _requestSeq) return;
       setState(() {
-        _error = e.toString();
+        _error = friendlyError(e, ref.read(tProvider));
         _loading = false;
       });
     }
+  }
+
+  Widget _emptyState(ThemeFilters filters) {
+    final t = ref.read(tProvider);
+    Widget button(String label, VoidCallback onPressed) =>
+        GameButton(label: label, expand: false, onPressed: onPressed);
+
+    if (filters.mine) {
+      return StatusView(
+        icon: Icons.edit_note_rounded,
+        message: t.ts_emptyMine,
+        action: button(t.ts_create, () {
+          if (requireLogin(context, ref)) context.push('/create');
+        }),
+      );
+    }
+    if (filters.favourites) {
+      return StatusView(
+        icon: Icons.favorite_border_rounded,
+        message: t.ts_emptyFavorites,
+        action: button(
+          t.ts_browseThemes,
+          () => _setFilters(filters.copyWith(favourites: false)),
+        ),
+      );
+    }
+    if (filters.search.isNotEmpty || filters.activeCount > 0) {
+      return StatusView(
+        icon: Icons.search_off_rounded,
+        message: t.ts_emptySearch,
+        action: button(t.ts_clearFilters, () {
+          _searchCtrl.clear();
+          _setFilters(filters.reset());
+        }),
+      );
+    }
+    return StatusView(icon: Icons.style_outlined, message: t.ts_noThemes);
+  }
+
+  /// One removable chip per active filter, so users can see why the list looks as it does.
+  List<Widget> _chips(ThemeFilters f, Translations t) {
+    final signedIn = ref.read(authProvider) != null;
+    Widget chip(String label, VoidCallback onRemove) => InputChip(
+      label: Text(label),
+      onDeleted: onRemove,
+      deleteIcon: const Icon(Icons.close_rounded, size: 18),
+      visualDensity: VisualDensity.compact,
+    );
+    final orderLabel = switch (f.order) {
+      'name' => t.ts_orderByName,
+      'likes' => t.ts_orderByLikes,
+      _ => t.ts_orderByDate,
+    };
+    return [
+      if (f.search.isNotEmpty)
+        chip('“${f.search}”', () {
+          _searchCtrl.clear();
+          _setFilters(f.copyWith(search: ''));
+        }),
+      if (f.sortChanged)
+        chip(
+          '$orderLabel ${f.descending ? '↓' : '↑'}',
+          () => _setFilters(
+            f.copyWith(order: f.defaultOrder, descending: f.defaultDescending),
+          ),
+        ),
+      if (f.mine && signedIn)
+        chip(t.ts_onlyMine, () => _setFilters(f.copyWith(mine: false))),
+      if (f.favourites && signedIn)
+        chip(
+          t.ts_onlyFavorites,
+          () => _setFilters(f.copyWith(favourites: false)),
+        ),
+      if (f.unverified)
+        chip(
+          t.ts_showUnverified,
+          () => _setFilters(f.copyWith(unverified: false)),
+        ),
+    ];
   }
 
   void _setFilters(ThemeFilters f) {
@@ -187,7 +294,10 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
     final c = context.colors;
     final filters = ref.watch(themeFiltersProvider);
     final game = ref.watch(gameProvider);
-    ref.listen(authProvider, (_, _) => _reload());
+    ref.listen(authProvider, (_, _) {
+      _searchCtrl.clear();
+      _reload();
+    });
     ref.listen(localeProvider, (_, _) => _reload());
 
     return Scaffold(
@@ -277,6 +387,19 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                 ),
               ),
             ),
+            if (_chips(filters, t).isNotEmpty)
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 44,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    itemCount: _chips(filters, t).length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) => _chips(filters, t)[i],
+                  ),
+                ),
+              ),
             if (game != null)
               SliverToBoxAdapter(
                 child: Padding(
@@ -300,7 +423,7 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                t.gh_resumeGame,
+                                t.home_resumeTitle,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -315,7 +438,13 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: () => context.go(
+                            game.hasPendingResults ? '/results' : '/play',
+                          ),
+                          child: Text(t.home_resumeAction),
+                        ),
                       ],
                     ),
                   ),
@@ -341,16 +470,26 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                   message: _error!,
                   isError: true,
                   action: GameButton(
-                    label: t.ts_search,
+                    label: t.err_retry,
                     expand: false,
+                    icon: Icons.refresh_rounded,
                     onPressed: _reload,
                   ),
                 ),
               )
-            else if (_items.isEmpty && !_loading)
+            else if (_items.isEmpty && _loading)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                sliver: SliverList.separated(
+                  itemCount: 3,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (_, _) => const ThemeTileSkeleton(),
+                ),
+              )
+            else if (_items.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: StatusView(message: t.ts_noThemes),
+                child: _emptyState(filters),
               )
             else
               SliverPadding(
@@ -359,12 +498,7 @@ class _ThemeSelectionScreenState extends ConsumerState<ThemeSelectionScreen> {
                   itemCount: _items.length + (_loading ? 1 : 0),
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, i) {
-                    if (i >= _items.length) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
+                    if (i >= _items.length) return const ThemeTileSkeleton();
                     final item = _items[i];
                     return _ThemeTile(
                       item: item,
@@ -396,7 +530,56 @@ class _ThemeTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          CoverImage(url: item.coverImageUrl),
+          Stack(
+            children: [
+              CoverImage(url: item.coverImageUrl),
+              // Bottom gradient keeps the like count readable on any cover.
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.center,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.55),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 10,
+                top: 10,
+                child: _VerifiedChip(verified: item.verified),
+              ),
+              Positioned(
+                right: 10,
+                bottom: 8,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.favorite_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${item.likesCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: Column(
@@ -404,11 +587,6 @@ class _ThemeTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      item.verified ? '✅' : '❌',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         item.name,
@@ -420,19 +598,6 @@ class _ThemeTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    ...[
-                      Icon(
-                        Icons.favorite_rounded,
-                        size: 16,
-                        color: c.error.withValues(alpha: 0.8),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${item.likesCount}',
-                        style: TextStyle(color: c.textA(0.7), fontSize: 13),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
                     Icon(Icons.chevron_right_rounded, color: c.textA(0.4)),
                   ],
                 ),
@@ -455,6 +620,33 @@ class _ThemeTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _VerifiedChip extends ConsumerWidget {
+  const _VerifiedChip({required this.verified});
+
+  final bool verified;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(tProvider);
+    final c = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: verified ? c.success : Colors.black.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        verified ? t.ts_verifiedChip : t.ts_unverifiedChip,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

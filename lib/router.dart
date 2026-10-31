@@ -18,20 +18,25 @@ import 'state/providers.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
-String _gameLocation(GameState game) => game.hasPendingResults ? '/results' : '/play';
+String _gameLocation(GameState game) =>
+    game.hasPendingResults ? '/results' : '/play';
 
-Page<void> _page(GoRouterState state, Widget child) =>
-    MaterialPage(key: state.pageKey, child: AppBackground(child: child));
+Page<void> _page(GoRouterState state, Widget child) => MaterialPage(
+  key: state.pageKey,
+  child: AppBackground(child: child),
+);
 
 /// Round results slide up from the bottom (web: y 100vh → 0 spring).
-Page<void> _sheetPage(GoRouterState state, Widget child) => CustomTransitionPage(
+Page<void> _sheetPage(GoRouterState state, Widget child) =>
+    CustomTransitionPage(
       key: state.pageKey,
-      transitionDuration: const Duration(milliseconds: 450),
+      transitionDuration: const Duration(milliseconds: 250),
       reverseTransitionDuration: const Duration(milliseconds: 250),
       child: AppBackground(child: child),
       transitionsBuilder: (context, animation, _, child) => SlideTransition(
-        position: Tween(begin: const Offset(0, 1), end: Offset.zero)
-            .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+        position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+        ),
         child: child,
       ),
     );
@@ -49,7 +54,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: game != null ? _gameLocation(game) : '/',
     redirect: (context, state) {
       final loc = state.matchedLocation;
-      if ((loc == '/play' || loc == '/results') && ref.read(gameProvider) == null) return '/';
+      if ((loc == '/play' || loc == '/results') &&
+          ref.read(gameProvider) == null) {
+        return '/';
+      }
       return null;
     },
     routes: [
@@ -59,38 +67,68 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, s) => _page(s, const LoginScreen()),
       ),
       StatefulShellRoute.indexedStack(
-        pageBuilder: (context, state, shell) => _page(state, _HomeShell(shell: shell)),
+        pageBuilder: (context, state, shell) =>
+            _page(state, _HomeShell(shell: shell)),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/', builder: (_, _) => const ThemeSelectionScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/history', builder: (_, _) => const GameHistoryScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/rules', builder: (_, _) => const RulesScreen()),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, _) => const ThemeSelectionScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/history',
+                builder: (_, _) => const GameHistoryScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/rules', builder: (_, _) => const RulesScreen()),
+            ],
+          ),
         ],
       ),
       GoRoute(
         path: '/theme/:id',
         parentNavigatorKey: _rootKey,
-        pageBuilder: (_, s) => _page(s, ThemeDetailsScreen(themeId: int.parse(s.pathParameters['id']!))),
+        pageBuilder: (_, s) => _page(
+          s,
+          ThemeDetailsScreen(themeId: int.parse(s.pathParameters['id']!)),
+        ),
         routes: [
           GoRoute(
             path: 'edit',
             parentNavigatorKey: _rootKey,
-            pageBuilder: (_, s) => _page(s, EditThemeScreen(themeId: int.parse(s.pathParameters['id']!))),
+            pageBuilder: (_, s) => _page(
+              s,
+              EditThemeScreen(themeId: int.parse(s.pathParameters['id']!)),
+            ),
           ),
         ],
       ),
-      GoRoute(path: '/create', parentNavigatorKey: _rootKey, pageBuilder: (_, s) => _page(s, const CreateThemeScreen())),
+      GoRoute(
+        path: '/create',
+        parentNavigatorKey: _rootKey,
+        pageBuilder: (_, s) => _page(s, const CreateThemeScreen()),
+      ),
       GoRoute(
         path: '/history/:id',
         parentNavigatorKey: _rootKey,
-        pageBuilder: (_, s) => _page(s, GameDetailsScreen(gameId: int.parse(s.pathParameters['id']!))),
+        pageBuilder: (_, s) => _page(
+          s,
+          GameDetailsScreen(gameId: int.parse(s.pathParameters['id']!)),
+        ),
       ),
-      GoRoute(path: '/play', parentNavigatorKey: _rootKey, pageBuilder: (_, s) => _page(s, const GamePlayScreen())),
+      GoRoute(
+        path: '/play',
+        parentNavigatorKey: _rootKey,
+        pageBuilder: (_, s) => _page(s, const GamePlayScreen()),
+      ),
       GoRoute(
         path: '/results',
         parentNavigatorKey: _rootKey,
